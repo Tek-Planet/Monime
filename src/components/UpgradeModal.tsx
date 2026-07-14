@@ -46,13 +46,17 @@ export function UpgradeModal({ open, onOpenChange }: UpgradeModalProps) {
   const currencySymbol = currency === "NGN" ? "₦" : currency === "SLE" ? "Le " : "$";
   const isMonimeCurrency = currency === "SLE";
 
-  const prepareMonimePayload = () => ({
+  const prepareMonimePayload = (reference: string) => ({
     amount: Math.round(totalPrice * 100) / 100,
     currency,
     months,
     phone_number: mobileMoneyPhone.trim(),
     source: "upgrade-modal",
     user_id: user?.id ?? null,
+    reference: reference,
+    reference_number: reference,
+    success_url: `${window.location.origin}/settings?subscription=monime_success&ref=${reference}`,
+    cancel_url: `${window.location.origin}/settings?subscription=monime_cancel&ref=${reference}`,
   });
 
   const handleCheckout = async () => {
@@ -71,7 +75,8 @@ export function UpgradeModal({ open, onOpenChange }: UpgradeModalProps) {
 
       setLoadingCheckout(true);
       try {
-        const monimePayload = prepareMonimePayload();
+        const reference = `sub_monime_${user.id}_${Date.now()}`;
+        const monimePayload = prepareMonimePayload(reference);
         const { data, error } = await supabase.functions.invoke("monime-checkout", {
           body: monimePayload,
         });

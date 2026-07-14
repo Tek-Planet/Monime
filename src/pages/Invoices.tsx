@@ -19,6 +19,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { useToast } from "@/hooks/use-toast";
 
 import { useState, useMemo, useEffect } from "react";
 import { useInvoices, Invoice } from "@/hooks/useInvoices";
@@ -28,6 +29,7 @@ const ITEMS_PER_PAGE = 10;
 
 const Invoices = () => {
   const { t, locale } = useLanguage();
+  const { toast } = useToast();
   const { business, loading: businessLoading } = useUserProfile();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
@@ -39,6 +41,37 @@ const Invoices = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const businessId = business?.id;
   const { invoices, loading, deleteInvoice, refetch } = useInvoices(businessId);
+
+  // Handle Monime callback redirects
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const payment = params.get("payment");
+
+    if (payment === "monime_success") {
+      toast({
+        title: "Payment Submitted",
+        description: "Your payment via Monime is being processed. It will reflect on the invoice status shortly.",
+      });
+      refetch();
+
+      // Poll 5 times every 2 seconds to reflect status changes quickly
+      let count = 0;
+      const interval = setInterval(() => {
+        count++;
+        refetch();
+        if (count >= 5) clearInterval(interval);
+      }, 2000);
+
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (payment === "monime_cancel") {
+      toast({
+        title: "Payment Cancelled",
+        description: "Your payment via Monime was cancelled.",
+        variant: "destructive",
+      });
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, [refetch, toast]);
 
   // Reset to page 1 when filters change
   useEffect(() => {

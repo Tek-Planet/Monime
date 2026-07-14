@@ -79,6 +79,7 @@ export function RecordInvoicePaymentModal({
       try {
         const amount = paymentData.amount;
         const cleanAmount = parseFloat(String(amount).replace(/[^0-9.]/g, ""));
+        const reference = paymentData.reference_number.trim() || `inv_monime_${invoice.id}_${Date.now()}`;
         const { data, error } = await supabase.functions.invoke("monime-checkout", {
           body: {
             amount: cleanAmount,
@@ -87,9 +88,12 @@ export function RecordInvoicePaymentModal({
             invoice_number: invoice.invoice_number,
             phone_number: phoneNumber,
             payment_method: "mobile_money",
-            reference_number: paymentData.reference_number.trim(),
+            reference_number: reference,
+            reference: reference,
             notes: paymentData.notes.trim(),
             source: "invoice-payment-modal",
+            success_url: `${window.location.origin}/invoices?payment=monime_success&ref=${reference}`,
+            cancel_url: `${window.location.origin}/invoices?payment=monime_cancel&ref=${reference}`,
           },
         });
 

@@ -67,8 +67,11 @@ serve(async (req) => {
 
     const status = String(data?.status || "").toLowerCase();
     const reference = String(data?.reference || "").trim();
-    const invoiceId = String(metadata?.invoice_id || "").trim();
-    const invoiceNumber = String(metadata?.invoice_number || "").trim();
+
+    const source = String(metadata?.source || "").trim();
+    const supabaseUserId = String(metadata?.supabase_user_id || "").trim();
+    const months = parseInt(metadata?.months || "1");
+    const amountMajor = Number(metadata?.amount || 0);
 
     const isPaid =
       eventName.endsWith(".paid") ||
@@ -76,9 +79,85 @@ serve(async (req) => {
       eventName.endsWith(".successful") ||
       ["paid", "successful", "completed", "success"].includes(status);
 
+    // 1. Check if source is subscription upgrade
+    if (source === "upgrade-modal" || source === "upgrade_modal") {
+      if (!supabaseUserId) {
+        return new Response(
+          JSON.stringify({ received: true, error: "Missing supabase_user_id in upgrade metadata" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (!isPaid) {
+        return new Response(
+          JSON.stringify({ received: true, event: eventName, status, note: "Upgrade payment not completed yet" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Idempotency: check if reference already processed
+      const { data: existingByTx } = await supabase
+        .from("subscriptions")
+        .select("id")
+        .eq("stripe_subscription_id", String(reference))
+        .maybeSingle();
+
+      if (existingByTx) {
+        return new Response(
+          JSON.stringify({ received: true, alreadyProcessed: true, note: "Subscription already activated" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const now = new Date();
+      const { data: existingSub } = await supabase
+        .from("subscriptions")
+        .select("*")
+        .eq("user_id", supabaseUserId)
+        .maybeSingle();
+
+      let periodStart = now;
+      const currentEnd = existingSub?.current_period_end
+        ? new Date(existingSub.current_period_end)
+        : existingSub?.trial_end_date
+        ? new Date(existingSub.trial_end_date)
+        : null;
+
+      if (currentEnd && currentEnd > now) {
+        periodStart = currentEnd;
+      }
+      const periodEnd = new Date(periodStart);
+      periodEnd.setMonth(periodEnd.getMonth() + months);
+
+      const { error: upErr } = await supabase
+        .from("subscriptions")
+        .upsert(
+          {
+            user_id: supabaseUserId,
+            status: "active",
+            plan_type: "premium",
+            current_period_start: periodStart.toISOString(),
+            current_period_end: periodEnd.toISOString(),
+            stripe_subscription_id: String(reference),
+          },
+          { onConflict: "user_id" }
+        );
+
+      if (upErr) throw upErr;
+
+      return new Response(
+        JSON.stringify({ received: true, user_id: supabaseUserId, subscription_status: "active", period_end: periodEnd.toISOString() }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // 2. Handle standard invoice payment
+    const invoiceId = String(metadata?.invoice_id || "").trim();
+    const invoiceNumber = String(metadata?.invoice_number || "").trim();
+
     if (!invoiceId && !invoiceNumber) {
       return new Response(
-        JSON.stringify({ received: true, note: "No invoice reference in metadata", event: eventName }),
+        JSON.stringify({ received: true, note: "No invoice or subscription reference in metadata", event: eventName }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
@@ -105,16 +184,32 @@ serve(async (req) => {
       );
     }
 
-    const nextPaidAmount = Math.max(invoice.paid_amount || 0, invoice.total_amount || 0);
+    // Idempotency check for invoice payment
+    const paymentRefNote = `Monime payment reference: ${reference}`;
+    if (invoice.notes && invoice.notes.includes(paymentRefNote)) {
+      return new Response(
+        JSON.stringify({ received: true, note: "Invoice payment already recorded", invoice_id: invoice.id }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Determine paid amount
+    const paymentAmount = amountMajor > 0 ? amountMajor : (invoice.total_amount || 0) - (invoice.paid_amount || 0);
+    const nextPaidAmount = (invoice.paid_amount || 0) + paymentAmount;
     const nextStatus =
-      nextPaidAmount >= (invoice.total_amount || 0) ? "paid" : invoice.status;
+      nextPaidAmount >= (invoice.total_amount || 0) ? "paid" : "partial";
+
+    const paymentNote = `Payment of Le ${paymentAmount.toLocaleString()} received on ${new Date().toLocaleDateString()} via Monime (${paymentRefNote})`;
+    const updatedNotes = invoice.notes
+      ? `${invoice.notes}\n\n${paymentNote}`
+      : paymentNote;
 
     const { error: updateError } = await supabase
       .from("invoices")
       .update({
         status: nextStatus,
         paid_amount: nextPaidAmount,
-        notes: `${invoice.notes || ""}\n\nMonime marked paid via ${reference || eventName}`.trim(),
+        notes: updatedNotes,
       })
       .eq("id", invoice.id);
     if (updateError) throw updateError;

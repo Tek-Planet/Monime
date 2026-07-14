@@ -172,6 +172,22 @@ const SettingsPage = () => {
     } else if (sub === 'verify' && status === 'cancelled') {
       toast.error('Payment was cancelled')
       window.history.replaceState({}, '', window.location.pathname)
+    } else if (sub === 'monime_success') {
+      toast.success('Subscription upgrade payment submitted successfully! Your premium features will activate shortly.')
+      queryClient.invalidateQueries({ queryKey: ['subscription'] })
+
+      // Poll 5 times every 2 seconds to reflect status changes quickly
+      let count = 0
+      const interval = setInterval(() => {
+        count++
+        queryClient.invalidateQueries({ queryKey: ['subscription'] })
+        if (count >= 5) clearInterval(interval)
+      }, 2000)
+
+      window.history.replaceState({}, '', window.location.pathname)
+    } else if (sub === 'monime_cancel') {
+      toast.error('Subscription upgrade payment was cancelled.')
+      window.history.replaceState({}, '', window.location.pathname)
     }
   }, [queryClient])
 

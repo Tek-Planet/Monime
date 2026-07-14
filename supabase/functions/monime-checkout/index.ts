@@ -125,6 +125,8 @@ serve(async (req) => {
         reference_number: body?.reference_number || null,
         notes: body?.notes || null,
         phone_number: phoneNumber || null,
+        amount: amountMajor,
+        months: body?.months || 1,
       },
     };
 
