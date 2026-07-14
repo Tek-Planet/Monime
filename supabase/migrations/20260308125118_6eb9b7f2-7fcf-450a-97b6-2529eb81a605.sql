@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS biometric_enabled boolean NOT NULL DEFAULT false;

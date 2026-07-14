@@ -1,0 +1,72 @@
+project_id = "lgstierfmiezdeqhwyap"
+
+[functions.create-first-admin]
+verify_jwt = true
+
+[functions.delete-user]
+verify_jwt = true
+
+[functions.send-invitation]
+verify_jwt = false
+
+[functions.send-shared-document]
+verify_jwt = true
+
+[functions.send-admin-notification]
+verify_jwt = true
+
+[functions.admin-delete-user]
+verify_jwt = true
+
+[functions.admin-update-user]
+verify_jwt = true
+
+[functions.search-user-by-email]
+verify_jwt = true
+
+[functions.seed-database]
+verify_jwt = true
+
+[functions.accept-team-invitation]
+verify_jwt = false
+
+[functions.chat-support]
+verify_jwt = false
+
+[functions.create-checkout]
+verify_jwt = false
+
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.redeem-promo-code]
+verify_jwt = false
+
+[functions.verify-flutterwave-payment]
+verify_jwt = false
+
+[functions.flutterwave-mobile-money-sl]
+verify_jwt = false
+
+[functions.monime-checkout]
+verify_jwt = false
+
+[functions.monime-webhook]
+verify_jwt = false
+
+[functions.msg91-send-otp]
+verify_jwt = false
+
+[functions.msg91-verify-otp]
+verify_jwt = false
+
+[functions.monime-otp]
+enabled = true
+verify_jwt = false
+import_map = "./functions/monime-otp/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/monime-otp/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/monime-otp/*.html" ]

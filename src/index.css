@@ -1,28 +1,410 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-@theme {
-  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+/* MiBuks Design System - Professional Fintech Theme for Sierra Leone
+All colors MUST be HSL. Professional blues and prosperity greens.
+*/
+
+@layer base {
+  :root {
+    /* MiBuks Professional Theme - Light Mode */
+    --background: 215 20% 98%; /* slate-50 */
+    --foreground: 215 25% 27%; /* slate-700 */
+
+    --card: 0 0% 100%; /* white */
+    --card-foreground: 215 25% 27%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 27%;
+
+    /* Brand Purple */
+    --primary: 249 77% 62%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 249 77% 57%;
+
+    /* Brand Orange */
+    --secondary: 35 91% 60%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 215 20% 96%; /* slate-100 */
+    --muted-foreground: 215 16% 47%; /* slate-500 */
+
+    --accent: 215 20% 96%;
+    --accent-foreground: 215 25% 27%;
+
+    --destructive: 0 84% 60%; /* red-500 */
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 215 20% 91%; /* slate-200 */
+    --input: 215 20% 91%;
+    --ring: 249 77% 62%;
+
+    /* MiBuks Custom Colors */
+    --fintech-blue: 217 91% 60%;
+    --fintech-blue-dark: 217 91% 55%;
+    --prosperity-green: 160 84% 39%;
+    --prosperity-green-light: 160 84% 45%;
+    --success: 160 84% 39%;
+    --warning: 43 96% 56%; /* amber-400 */
+    --info: 199 89% 48%; /* sky-500 */
+
+    /* Gradients */
+    --gradient-primary: hsl(251, 85%, 3%);
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(215 20% 98%));
+    --gradient-subtle: linear-gradient(180deg, hsl(215 20% 98%), hsl(215 25% 96%));
+
+    /* Shadows */
+    --shadow-elegant: 0 4px 20px -2px hsl(249 77% 62% / 0.1);
+    --shadow-card: 0 2px 8px -1px hsl(215 25% 27% / 0.1);
+    --shadow-glow: 0 0 30px hsl(249 77% 62% / 0.2);
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5% 26%;
+
+    --sidebar-primary: 240 6% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 5% 96%;
+
+    --sidebar-accent-foreground: 240 6% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 249 77% 62%;
+  }
+
+  .dark {
+    /* MiBuks Professional Theme - Dark Mode */
+    --background: 215 28% 17%; /* slate-800 */
+    --foreground: 215 20% 98%; /* slate-50 */
+
+    --card: 215 25% 20%; /* slate-700 */
+    --card-foreground: 215 20% 98%;
+
+    --popover: 215 25% 20%;
+    --popover-foreground: 215 20% 98%;
+
+    --primary: 249 77% 62%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 249 77% 67%;
+
+    --secondary: 35 91% 60%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 215 25% 25%; /* slate-600 */
+    --muted-foreground: 215 13% 65%; /* slate-400 */
+
+    --accent: 215 25% 25%;
+    --accent-foreground: 215 20% 98%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 215 25% 25%;
+    --input: 215 25% 25%;
+    --ring: 249 77% 62%;
+
+    /* MiBuks Dark Custom Colors */
+    --fintech-blue: 217 91% 60%;
+    --fintech-blue-dark: 217 91% 65%;
+    --prosperity-green: 160 84% 45%;
+    --prosperity-green-light: 160 84% 50%;
+    --success: 160 84% 45%;
+    --warning: 43 96% 56%;
+    --info: 199 89% 48%;
+
+    /* Dark Gradients */
+    --gradient-primary: hsl(249 77% 62%);
+    --gradient-card: linear-gradient(145deg, hsl(215 25% 20%), hsl(215 28% 17%));
+    --gradient-subtle: linear-gradient(180deg, hsl(215 28% 17%), hsl(215 25% 20%));
+
+    /* Dark Shadows */
+    --shadow-elegant: 0 4px 20px -2px hsl(0 0% 0% / 0.5);
+    --shadow-card: 0 2px 8px -1px hsl(0 0% 0% / 0.3);
+    --shadow-glow: 0 0 30px hsl(249 77% 62% / 0.3);
+    --sidebar-background: 240 6% 10%;
+    --sidebar-foreground: 240 5% 96%;
+    --sidebar-primary: 224 76% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 4% 16%;
+    --sidebar-accent-foreground: 240 5% 96%;
+    --sidebar-border: 240 4% 16%;
+    --sidebar-ring: 249 77% 62%;
+  }
 }
 
-/* Custom fade animations and visual smoothers */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-inter;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* RTL Support */
+  [dir="rtl"] {
+    text-align: right;
+  }
+
+  [dir="rtl"] .mr-2 {
+    margin-right: 0;
+    margin-left: 0.5rem;
+  }
+
+  [dir="rtl"] .ml-2 {
+    margin-left: 0;
+    margin-right: 0.5rem;
+  }
+
+  [dir="rtl"] .mr-3 {
+    margin-right: 0;
+    margin-left: 0.75rem;
+  }
+
+  [dir="rtl"] .ml-3 {
+    margin-left: 0;
+    margin-right: 0.75rem;
+  }
+
+  [dir="rtl"] .mr-4 {
+    margin-right: 0;
+    margin-left: 1rem;
+  }
+
+  [dir="rtl"] .ml-4 {
+    margin-left: 0;
+    margin-right: 1rem;
+  }
+
+  [dir="rtl"] .ml-auto {
+    margin-left: 0;
+    margin-right: auto;
+  }
+
+  [dir="rtl"] .mr-auto {
+    margin-right: 0;
+    margin-left: auto;
+  }
+
+  [dir="rtl"] .pl-2 {
+    padding-left: 0;
+    padding-right: 0.5rem;
+  }
+
+  [dir="rtl"] .pr-2 {
+    padding-right: 0;
+    padding-left: 0.5rem;
+  }
+
+  [dir="rtl"] .pl-4 {
+    padding-left: 0;
+    padding-right: 1rem;
+  }
+
+  [dir="rtl"] .pr-4 {
+    padding-right: 0;
+    padding-left: 1rem;
+  }
+
+  [dir="rtl"] .left-0 {
+    left: auto;
+    right: 0;
+  }
+
+  [dir="rtl"] .right-0 {
+    right: auto;
+    left: 0;
+  }
+
+  [dir="rtl"] .left-4 {
+    left: auto;
+    right: 1rem;
+  }
+
+  [dir="rtl"] .right-4 {
+    right: auto;
+    left: 1rem;
+  }
+
+  [dir="rtl"] .text-left {
+    text-align: right;
+  }
+
+  [dir="rtl"] .text-right {
+    text-align: left;
+  }
+
+  [dir="rtl"] .space-x-2 > :not([hidden]) ~ :not([hidden]) {
+    --tw-space-x-reverse: 1;
+  }
+
+  [dir="rtl"] .space-x-4 > :not([hidden]) ~ :not([hidden]) {
+    --tw-space-x-reverse: 1;
+  }
+
+  [dir="rtl"] .gap-x-2 {
+    column-gap: 0.5rem;
+  }
+
+  [dir="rtl"] .gap-x-4 {
+    column-gap: 1rem;
+  }
+
+  [dir="rtl"] .flex-row {
+    flex-direction: row-reverse;
+  }
+
+  [dir="rtl"] .flex-row-reverse {
+    flex-direction: row;
+  }
+
+  /* RTL icon flipping for directional icons */
+  [dir="rtl"] .rtl-flip {
+    transform: scaleX(-1);
+  }
+
+  /* Professional animations and transitions */
+  .animate-fade-in {
+    animation: fadeIn 0.6s ease-out;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.5s ease-out;
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.3s ease-out;
+  }
+
+  .hover-lift {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-elegant);
+  }
+
+  .professional-card {
+    background: var(--gradient-card);
+    border: 1px solid hsl(var(--border));
+    box-shadow: var(--shadow-card);
+    transition: all 0.3s ease;
+  }
+
+  .professional-card:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-elegant);
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  /* Read Aloud Mode - visual indicator */
+  body.read-aloud-mode *:hover {
+    outline: 2px solid hsl(var(--primary) / 0.5) !important;
+    outline-offset: 2px;
+    cursor: pointer !important;
+    border-radius: 4px;
+  }
+
+  body.read-aloud-mode {
+    cursor: pointer;
+  }
 }
 
-.animate-fade-in {
-  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+  20%, 40%, 60%, 80% { transform: translateX(4px); }
 }
 
-@keyframes pulseRipple {
-  0% { transform: scale(0.95); opacity: 0.5; }
-  50% { transform: scale(1.1); opacity: 0.3; }
-  100% { transform: scale(1.3); opacity: 0; }
+.animate-shake {
+  animation: shake 0.5s ease-in-out;
 }
 
-.animate-ripple {
-  animation: pulseRipple 2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+/* Leaflet Marker Cluster Styles */
+.custom-marker-cluster {
+  background: transparent !important;
 }
 
+.cluster-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: 700;
+  color: hsl(var(--primary-foreground));
+  box-shadow: 0 2px 8px hsl(var(--primary) / 0.4);
+}
+
+.cluster-icon--small {
+  width: 36px;
+  height: 36px;
+  font-size: 13px;
+  background: hsl(var(--primary));
+}
+
+.cluster-icon--medium {
+  width: 44px;
+  height: 44px;
+  font-size: 15px;
+  background: hsl(var(--primary) / 0.85);
+  border: 2px solid hsl(var(--primary));
+}
+
+.cluster-icon--large {
+  width: 52px;
+  height: 52px;
+  font-size: 17px;
+  background: hsl(var(--primary) / 0.7);
+  border: 3px solid hsl(var(--primary));
+}
+
+/* Custom business marker styles */
+.custom-business-marker {
+  background: transparent;
+  border: none;
+}
+
+.custom-business-marker svg {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}

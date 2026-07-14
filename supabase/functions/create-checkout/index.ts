@@ -1,0 +1,106 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } },
+    );
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await supabase.auth.getUser(token);
+    if (claimsError || !claimsData?.user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const user = claimsData.user;
+    const { months, currency } = await req.json();
+
+    if (!months || months < 1 || months > 24) {
+      return new Response(JSON.stringify({ error: "Invalid months (1-24)" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const flwSecret = Deno.env.get("FLUTTERWAVE_SECRET_KEY");
+    if (!flwSecret) throw new Error("FLUTTERWAVE_SECRET_KEY not configured");
+
+    // Pricing: $2/month base. If currency = NGN, convert (approx 1600 NGN = $1).
+    const payCurrency = (currency || "USD").toUpperCase();
+    const usdAmount = months * 2;
+    const rate = payCurrency === "NGN" ? 1600 : payCurrency === "SLL" ? 23 : 1;
+    const amount = usdAmount * rate;
+
+    const tx_ref = `mibuks_${user.id}_${Date.now()}`;
+    const origin = req.headers.get("origin") || "https://tell-me-what-todo.lovable.app";
+
+    const payload = {
+      tx_ref,
+      amount,
+      currency: payCurrency,
+      redirect_url: `${origin}/settings?subscription=verify&tx_ref=${tx_ref}`,
+      customer: {
+        email: user.email,
+        name: user.email,
+      },
+      customizations: {
+        title: "MiBuks Premium",
+        description: `MiBuks Premium - ${months} month${months > 1 ? "s" : ""}`,
+      },
+      meta: {
+        supabase_user_id: user.id,
+        months: months.toString(),
+      },
+    };
+
+    const flwRes = await fetch("https://api.flutterwave.com/v3/payments", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${flwSecret}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const flwData = await flwRes.json();
+    console.log("Flutterwave response status:", flwRes.status, "body:", JSON.stringify(flwData));
+    if (flwData.status !== "success" || !flwData.data?.link) {
+      console.error("Flutterwave error:", flwData);
+      throw new Error(flwData.message || `Flutterwave failed (${flwRes.status})`);
+    }
+
+    return new Response(JSON.stringify({ url: flwData.data.link, tx_ref }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (error: any) {
+    console.error("Checkout error:", error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
