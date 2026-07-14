@@ -1,0 +1,6 @@
+{
+  "name": "One Page Shoe Checkout with Monime",
+  "description": "A high-fidelity single product shoe checkout page with integrated Monime payment gateway.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
