@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { SidebarProvider } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/AppSidebar'
@@ -11,6 +12,20 @@ import { ArrowLeft } from 'lucide-react' // Common icon library
 export function Layout() {
   const navigate = useNavigate()
   const location = useLocation()
+
+  // Handle global redirects for third-party checkout integrations (like Monime)
+  // This avoids 404 Page Not Found errors on SPA sub-routes in local/custom hosting
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const subscription = params.get('subscription')
+    const payment = params.get('payment')
+
+    if (subscription) {
+      navigate(`/settings${location.search}`, { replace: true })
+    } else if (payment) {
+      navigate(`/invoices${location.search}`, { replace: true })
+    }
+  }, [location.search, navigate])
 
   // Show back button on sub-routes (more than one segment after the root)
   // Adjust the condition based on your route structure if needed

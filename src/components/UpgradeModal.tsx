@@ -55,8 +55,8 @@ export function UpgradeModal({ open, onOpenChange }: UpgradeModalProps) {
     user_id: user?.id ?? null,
     reference: reference,
     reference_number: reference,
-    success_url: `${window.location.origin}/settings?subscription=monime_success&ref=${reference}`,
-    cancel_url: `${window.location.origin}/settings?subscription=monime_cancel&ref=${reference}`,
+    success_url: `${window.location.origin}/?subscription=monime_success&ref=${reference}`,
+    cancel_url: `${window.location.origin}/?subscription=monime_cancel&ref=${reference}`,
   });
 
   const handleCheckout = async () => {
