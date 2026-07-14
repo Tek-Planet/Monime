@@ -13,7 +13,7 @@ const SNEAKER_PRODUCT: Product = {
   price: 2600, // 2,600 Sierra Leone Leones (New Leones, approx 115-125 USD)
   priceUSD: 125, // 125 US Dollars
   image: '/src/assets/images/velocity_pro_sneaker_1784039390019.jpg',
-  sizes: [7, 8, 9, 10, 11, 12],
+  sizes: [4, 12],
   colors: [
     { name: 'Electric Orange', hex: '#f97316', class: 'bg-orange-500' },
     { name: 'Neon Cyberpunk', hex: '#ec4899', class: 'bg-pink-500' },

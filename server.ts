@@ -1,4 +1,5 @@
 import express from 'express';
+import { randomUUID } from 'crypto';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import dotenv from 'dotenv';
@@ -74,40 +75,51 @@ app.post('/api/checkout/initiate', async (req, res) => {
     const apiKey = process.env.MONIME_API_KEY;
     if (apiKey && apiKey !== 'MY_GEMINI_API_KEY' && apiKey !== 'MY_APP_URL') {
       try {
-        // According to standard payment requests, construct the payment object
-        // Monime API typically creates a checkout session link
-        // Base: https://api.monime.io/v1/payments
+        const appUrl = `http://localhost:${PORT}`;
+        const successUrl = `${appUrl}/checkout/verify?txRef=${txRef}`;
+        const cancelUrl = `${appUrl}/`;
+
         const monimePayload = {
-          amount: totalAmount,
-          currency: currency || 'SLE',
-          reference: txRef,
-          description: `Payment for ${product.name} (Size: ${size}, Qty: ${quantity})`,
-          redirect_url: `${process.env.APP_URL || `http://localhost:${PORT}`}/checkout/verify?txRef=${txRef}`,
-          customer: {
-            name: customer.fullName,
-            email: customer.email,
-            phone: customer.phoneNumber,
-          },
+          name: customer.fullName,
+          successUrl,
+          cancelUrl,
+          lineItems: [
+            {
+              type: 'custom',
+              name: `${product.name} (Size: ${size})`,
+              price: { currency: currency || 'SLE', value: Number(totalAmount) },
+              quantity: Number(quantity),
+              description: `Color: ${color}, Size: ${size}`,
+              reference: txRef,
+            }
+          ],
           metadata: {
-            size,
-            color,
-            productId: product.id,
-          }
+            size: String(size),
+            color: String(color),
+            productId: String(product.id),
+          },
+          callbackState: txRef,
         };
 
-        const response = await fetch('https://api.monime.io/v1/payments', {
+        const headers: Record<string, string> = {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'Idempotency-Key': randomUUID(),
+        };
+
+        if (process.env.MONIME_SPACE_ID) {
+          headers['Monime-Space-Id'] = process.env.MONIME_SPACE_ID;
+        }
+
+        const response = await fetch('https://api.monime.io/v1/checkout-sessions', {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
+          headers,
           body: JSON.stringify(monimePayload),
         });
 
         if (response.ok) {
           const data = await response.json();
-          // Assuming data returns a checkout/payment redirect URL in some property (e.g. data.checkoutUrl or data.data.checkoutUrl)
-          const redirectUrl = data.checkoutUrl || data.url || data.data?.checkoutUrl || data.data?.url;
+          const redirectUrl = data?.result?.redirectUrl || data?.redirectUrl || data?.result?.url || data?.url || data?.data?.redirectUrl || data?.data?.url;
           if (redirectUrl) {
             return res.json({
               status: 'success',
