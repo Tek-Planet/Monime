@@ -53,12 +53,14 @@ async function fetchBranches(businessId: string): Promise<Branch[]> {
   return (data || []) as Branch[];
 }
 
+const EMPTY_BRANCHES: Branch[] = [];
+
 export function useBranches(businessId: string | undefined) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
   const {
-    data: branches = [],
+    data: branches = EMPTY_BRANCHES,
     isLoading: loading,
     refetch,
   } = useQuery({

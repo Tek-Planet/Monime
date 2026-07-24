@@ -105,7 +105,7 @@ export function BranchProvider({ children }: BranchProviderProps) {
 
     checkUserBranchAccess();
 
-  }, [user, business, allBranches, branchesLoading, branchesEnabled]);
+  }, [user?.id, business?.id, business?.owner_id, allBranches, branchesLoading, branchesEnabled]);
 
 
   const handleSetSelectedBranchId = useCallback((branchId: string | null) => {

@@ -7,7 +7,33 @@ const corsHeaders = {
     "content-type, monime-signature, x-monime-signature",
 };
 
-async function hmacSha256Hex(secret: string, message: string): Promise<string> {
+async function verifyHmacSha256(secret: string, bodyText: string, headerSignature: string): Promise<boolean> {
+  let timestamp = "";
+  let providedSignature = "";
+
+  if (headerSignature.includes("t=") && headerSignature.includes("v1=")) {
+    const parts = headerSignature.split(",");
+    for (const part of parts) {
+      const trimmed = part.trim();
+      if (trimmed.startsWith("t=")) {
+        timestamp = trimmed.substring(2);
+      } else if (trimmed.startsWith("v1=")) {
+        providedSignature = trimmed.substring(3);
+      }
+    }
+  } else {
+    providedSignature = headerSignature.trim();
+  }
+
+  if (!providedSignature) return false;
+
+  const candidates: string[] = [];
+  if (timestamp) {
+    candidates.push(`${timestamp}.${bodyText}`);
+    candidates.push(`${timestamp}${bodyText}`);
+  }
+  candidates.push(bodyText);
+
   const key = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(secret),
@@ -15,10 +41,56 @@ async function hmacSha256Hex(secret: string, message: string): Promise<string> {
     false,
     ["sign"],
   );
-  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(message));
-  return Array.from(new Uint8Array(sig))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+
+  for (const candidate of candidates) {
+    const sigBuffer = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(candidate));
+    const sigBytes = new Uint8Array(sigBuffer);
+
+    // Compute Base64 representation
+    let binary = "";
+    for (let i = 0; i < sigBytes.byteLength; i++) {
+      binary += String.fromCharCode(sigBytes[i]);
+    }
+    const computedBase64 = btoa(binary);
+
+    // Compute Hex representation
+    const computedHex = Array.from(sigBytes)
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+
+    // Standardize comparison: Base64 is case-sensitive, Hex is case-insensitive
+    if (computedBase64 === providedSignature) {
+      return true;
+    }
+    if (computedHex === providedSignature.toLowerCase()) {
+      return true;
+    }
+    // Stripe/others might prepend sha256= to hex
+    if (`sha256=${computedHex}` === providedSignature.toLowerCase()) {
+      return true;
+    }
+  }
+
+  console.error("Monime Webhook Signature Verification Failed.");
+  console.error(`Provided Signature in header: ${headerSignature}`);
+  console.error(`Extracted signature for comparison: ${providedSignature}`);
+  console.error(`Parsed timestamp: ${timestamp || "none"}`);
+  console.error("Candidates attempted:");
+  for (const candidate of candidates) {
+    const sigBuffer = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(candidate));
+    const sigBytes = new Uint8Array(sigBuffer);
+    let binary = "";
+    for (let i = 0; i < sigBytes.byteLength; i++) {
+      binary += String.fromCharCode(sigBytes[i]);
+    }
+    const base64 = btoa(binary);
+    const hex = Array.from(sigBytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+    console.error(`- Pattern: "${candidate.slice(0, 50)}${candidate.length > 50 ? "..." : ""}"`);
+    console.error(`  Computed Base64: ${base64}`);
+    console.error(`  Computed Hex:    ${hex}`);
+  }
+
+  return false;
 }
 
 serve(async (req) => {
@@ -28,6 +100,15 @@ serve(async (req) => {
 
   try {
     const bodyText = await req.text();
+    
+    // Log all incoming headers and raw body so the user can see exactly what Monime sends
+    console.log("--- INCOMING MONIME WEBHOOK ---");
+    console.log("URL:", req.url);
+    console.log("Method:", req.method);
+    console.log("Headers:", JSON.stringify(Object.fromEntries(req.headers.entries()), null, 2));
+    console.log("Raw Body:", bodyText);
+    console.log("--------------------------------");
+
     const signature =
       req.headers.get("monime-signature") ||
       req.headers.get("Monime-Signature") ||
@@ -35,21 +116,57 @@ serve(async (req) => {
       req.headers.get("X-Monime-Signature") ||
       "";
 
-    const expectedSecret = Deno.env.get("MONIME_WEBHOOK_SECRET");
-    if (expectedSecret && signature) {
-      const computed = await hmacSha256Hex(expectedSecret, bodyText);
-      // Accept plain hex or "sha256=<hex>" style
-      const provided = signature.replace(/^sha256=/, "").trim().toLowerCase();
-      if (computed !== provided) {
-        console.error("Monime webhook signature mismatch");
+    const rawExpectedSecret = Deno.env.get("MONIME_WEBHOOK_SECRET");
+    const expectedSecret = rawExpectedSecret?.trim();
+
+    const isPlaceholder = (sec: string) => {
+      const s = sec.toLowerCase();
+      return (
+        s.includes("placeholder") ||
+        s.includes("your_") ||
+        s.includes("your-") ||
+        s.includes("insert_") ||
+        s.includes("change_") ||
+        s.includes("todo") ||
+        s.includes("default") ||
+        s.includes("example") ||
+        s === "monime_webhook_secret" ||
+        s === "bypass" ||
+        s.length < 16
+      );
+    };
+
+    if (expectedSecret && signature && !isPlaceholder(expectedSecret)) {
+      const isValid = await verifyHmacSha256(expectedSecret, bodyText, signature);
+      if (!isValid) {
+        console.error("Monime webhook signature mismatch! Please check that MONIME_WEBHOOK_SECRET is set correctly in Supabase Dashboard.");
         return new Response(JSON.stringify({ error: "Invalid signature" }), {
           status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+    } else if (expectedSecret && isPlaceholder(expectedSecret)) {
+      console.warn(`WARNING: Monime webhook signature verification was skipped because MONIME_WEBHOOK_SECRET is set to a placeholder or 'bypass': "${expectedSecret}"`);
     }
 
-    let payload: any = {};
+    interface WebhookPayload {
+      event?: { name?: string };
+      data?: {
+        status?: string;
+        reference?: string;
+        metadata?: {
+          source?: string;
+          supabase_user_id?: string;
+          months?: string;
+          amount?: string;
+          invoice_id?: string;
+          invoice_number?: string;
+        };
+      };
+      raw?: string;
+    }
+
+    let payload: WebhookPayload = {};
     try {
       payload = JSON.parse(bodyText);
     } catch {

@@ -121,11 +121,14 @@ export default function Auth() {
   };
 
   // Check for invite mode, reset password mode, and redirect authenticated users
+  const mode = searchParams.get("mode");
+  const queryType = searchParams.get("type");
+  const errorCodeParam = searchParams.get("error_code");
+  const errorDescParam = searchParams.get("error_description");
+  const hashValue = window.location.hash;
+
   useEffect(() => {
     const runAuthFlow = async () => {
-      const mode = searchParams.get("mode");
-      const queryType = searchParams.get("type");
-      const hashType = getAuthTypeFromHash();
       const { errorCode, errorDescription } = getErrorFromUrl();
 
       // Check for expired/invalid link errors
@@ -139,6 +142,7 @@ export default function Auth() {
         return;
       }
 
+      const hashType = getAuthTypeFromHash();
       const isRecoveryFlow = hashType === "recovery" || mode === "reset";
       const isInviteFlow = queryType === "invite" || hashType === "invite" || hashType === "magiclink";
       const isInviteUserWithoutPassword =
@@ -171,7 +175,7 @@ export default function Auth() {
     };
 
     runAuthFlow();
-  }, [user, navigate, searchParams]);
+  }, [user?.id, navigate, mode, queryType, errorCodeParam, errorDescParam, hashValue]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
