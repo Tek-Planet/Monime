@@ -7,6 +7,7 @@ import { Sale } from "@/hooks/useSales";
 import { Invoice } from "@/hooks/useInvoices";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useMemo } from "react";
+import { parseLocalDate } from "@/lib/utils";
 
 interface TotalRevenueModalProps {
   isOpen: boolean;
@@ -57,7 +58,7 @@ export function TotalRevenueModal({
     }));
 
     return [...saleTransactions, ...invoiceTransactions].sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+      (a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime()
     );
   }, [sales, paidInvoices]);
 

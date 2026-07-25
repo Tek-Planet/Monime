@@ -19,6 +19,8 @@ import { Sale } from "@/hooks/useSales";
 import { Invoice } from "@/hooks/useInvoices";
 import { useLanguage } from "@/contexts/LanguageContext";
 
+import { parseLocalDate } from "@/lib/utils";
+
 interface TotalOrdersModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -54,7 +56,7 @@ export const TotalOrdersModal = ({
       invoice_number: invoice.invoice_number,
       status: invoice.status,
     })),
-  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  ].sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime());
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

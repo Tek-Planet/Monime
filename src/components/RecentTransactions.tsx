@@ -36,27 +36,29 @@ export function RecentTransactions({ businessId }: RecentTransactionsProps) {
 
     // Combine sales and invoices into transactions
     const allTransactions = [
-      ...sales.slice(0, 5).map(sale => ({
+      ...sales.slice(0, 10).map(sale => ({
         id: sale.id,
         type: 'income' as const,
         description: sale.customer?.name ? `${t('dashboard.saleTo')} ${sale.customer.name}` : t('dashboard.walkInSale'),
         amount: formatCurrency(Number(sale.total_amount)),
         date: formatDistanceToNow(new Date(sale.created_at), { addSuffix: true, locale: dateLocale }),
+        rawDate: sale.created_at,
         status: 'completed' as const
       })),
-      ...invoices.slice(0, 3).map(invoice => ({
+      ...invoices.slice(0, 10).map(invoice => ({
         id: invoice.id,
         type: 'income' as const,
         description: `${t('dashboard.invoice')} ${invoice.invoice_number}${invoice.customer?.name ? ` - ${invoice.customer.name}` : ''}`,
         amount: formatCurrency(Number(invoice.total_amount)),
         date: formatDistanceToNow(new Date(invoice.created_at), { addSuffix: true, locale: dateLocale }),
+        rawDate: invoice.created_at,
         status: invoice.status === 'paid' ? 'completed' as const : 'pending' as const
       }))
     ]
 
     // Sort by date and take the 6 most recent
     return allTransactions
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .sort((a, b) => new Date(b.rawDate).getTime() - new Date(a.rawDate).getTime())
       .slice(0, 6)
   }, [sales, invoices, business?.currency, t, dateLocale])
 

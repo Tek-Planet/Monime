@@ -4,6 +4,8 @@ import { useInvoices } from '@/hooks/useInvoices'
 import { useBusinessInfo } from '@/hooks/useBusinessInfo'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { useMemo } from 'react'
+import { startOfMonth, endOfMonth } from 'date-fns'
+import { parseLocalDate } from '@/lib/utils'
 
 interface RevenueChartProps {
   businessId?: string
@@ -38,19 +40,19 @@ export function RevenueChart({ businessId }: RevenueChartProps) {
     }
 
     return months.map(({ month, fullDate }) => {
-      const monthStart = new Date(fullDate.getFullYear(), fullDate.getMonth(), 1)
-      const monthEnd = new Date(fullDate.getFullYear(), fullDate.getMonth() + 1, 0)
+      const monthStart = startOfMonth(fullDate)
+      const monthEnd = endOfMonth(fullDate)
 
       // Calculate revenue from sales for this month
       const monthSales = sales.filter(sale => {
-        const saleDate = new Date(sale.sale_date)
+        const saleDate = parseLocalDate(sale.sale_date)
         return saleDate >= monthStart && saleDate <= monthEnd
       })
       const revenue = monthSales.reduce((sum, sale) => sum + Number(sale.total_amount), 0)
 
       // Calculate revenue from invoices for this month
       const monthInvoices = invoices.filter(invoice => {
-        const invoiceDate = new Date(invoice.invoice_date)
+        const invoiceDate = parseLocalDate(invoice.invoice_date)
         return invoiceDate >= monthStart && invoiceDate <= monthEnd && invoice.status === 'paid'
       })
       const invoiceRevenue = monthInvoices.reduce((sum, invoice) => sum + Number(invoice.total_amount), 0)
