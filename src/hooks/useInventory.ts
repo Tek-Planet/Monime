@@ -5,6 +5,7 @@ import { useUserProfile } from './useUserProfile'
 import { toast } from '@/hooks/use-toast'
 import { useEffect } from 'react'
 import { useBranchContext } from '@/contexts/BranchContext'
+import { fetchAllPages } from '@/lib/fetchAllPages'
 
 export interface InventoryItem {
   id: string
@@ -57,23 +58,23 @@ export function useInventory(businessId?: string) {
     queryFn: async (): Promise<InventoryItem[]> => {
       if (!user) return []
 
-      let query = supabase
-        .from('inventory')
-        .select('*')
+      const buildQuery = () => {
+        let query = supabase
+          .from('inventory')
+          .select('*')
 
-      if (businessId) {
-        query = query.eq('business_id', businessId)
+        if (businessId) {
+          query = query.eq('business_id', businessId)
+        }
+
+        if (selectedBranchId) {
+          query = query.eq('branch_id', selectedBranchId)
+        }
+
+        return query.order('created_at', { ascending: false })
       }
 
-      // Filter by branch if selected
-      if (selectedBranchId) {
-        query = query.eq('branch_id', selectedBranchId)
-      }
-
-      const { data, error } = await query.order('created_at', { ascending: false })
-
-      if (error) throw error
-      return data || []
+      return await fetchAllPages<InventoryItem>(buildQuery)
     },
     enabled: !!user && branchResolved,
     staleTime: 5 * 60 * 1000,

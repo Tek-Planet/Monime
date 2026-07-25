@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/integrations/supabase/client'
 import { toast } from 'sonner'
 import { adminNGOsKeys } from './useAdminNGOs'
+import { fetchAllPages } from '@/lib/fetchAllPages'
 
 export interface Business {
   id: string
@@ -202,10 +203,10 @@ export function useBusinessStats(businessId: string | undefined) {
       const thirtyDaysAgo = new Date()
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
-      const [customersResult, salesResult, expensesResult, invoicesResult, inventoryResult, suppliersResult, recentSalesResult, recentExpensesResult] = await Promise.all([
+      const [customersResult, salesData, expensesData, invoicesResult, inventoryResult, suppliersResult, recentSalesResult, recentExpensesResult] = await Promise.all([
         supabase.from('customers').select('id', { count: 'exact', head: true }).eq('business_id', businessId!),
-        supabase.from('sales').select('total_amount').eq('business_id', businessId!),
-        supabase.from('expenses').select('amount').eq('business_id', businessId!),
+        fetchAllPages<{ total_amount: number }>(() => supabase.from('sales').select('total_amount').eq('business_id', businessId!).order('created_at', { ascending: false })),
+        fetchAllPages<{ amount: number }>(() => supabase.from('expenses').select('amount').eq('business_id', businessId!).order('created_at', { ascending: false })),
         supabase.from('invoices').select('id', { count: 'exact', head: true }).eq('business_id', businessId!),
         supabase.from('inventory').select('id', { count: 'exact', head: true }).eq('business_id', businessId!),
         supabase.from('suppliers').select('id', { count: 'exact', head: true }).eq('business_id', businessId!),
@@ -213,8 +214,8 @@ export function useBusinessStats(businessId: string | undefined) {
         supabase.from('expenses').select('id', { count: 'exact', head: true }).eq('business_id', businessId!).gte('expense_date', thirtyDaysAgo.toISOString().split('T')[0]),
       ])
 
-      const totalSales = salesResult.data?.reduce((sum, sale) => sum + Number(sale.total_amount || 0), 0) || 0
-      const totalExpenses = expensesResult.data?.reduce((sum, expense) => sum + Number(expense.amount || 0), 0) || 0
+      const totalSales = salesData.reduce((sum, sale) => sum + Number(sale.total_amount || 0), 0)
+      const totalExpenses = expensesData.reduce((sum, expense) => sum + Number(expense.amount || 0), 0)
 
       return {
         totalCustomers: customersResult.count || 0,
@@ -314,21 +315,14 @@ export function useBusinessReportingMetrics(businessId: string | undefined) {
       const firstDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
       const lastDayLastMonth = new Date(now.getFullYear(), now.getMonth(), 0)
 
-      const [salesResult, expensesResult, inventoryResult, customersResult, suppliersResult, invoicesResult] = await Promise.all([
-        supabase.from('sales').select('total_amount, customer_id, sale_date').eq('business_id', businessId!),
-        supabase.from('expenses').select('amount').eq('business_id', businessId!),
-        supabase.from('inventory').select('stock_quantity, min_stock_level, unit_price, cost_price, is_active').eq('business_id', businessId!),
-        supabase.from('customers').select('id, name, current_balance, email, phone').eq('business_id', businessId!),
-        supabase.from('suppliers').select('current_balance').eq('business_id', businessId!),
-        supabase.from('invoices').select('total_amount, paid_amount, status').eq('business_id', businessId!).in('status', ['sent', 'overdue']),
+      const [salesData, expensesData, inventoryData, customersData, suppliersData, invoicesData] = await Promise.all([
+        fetchAllPages<{ total_amount: number; customer_id?: string; sale_date: string }>(() => supabase.from('sales').select('total_amount, customer_id, sale_date').eq('business_id', businessId!).order('created_at', { ascending: false })),
+        fetchAllPages<{ amount: number }>(() => supabase.from('expenses').select('amount').eq('business_id', businessId!).order('created_at', { ascending: false })),
+        fetchAllPages<{ stock_quantity: number; min_stock_level: number; unit_price: number; cost_price: number; is_active: boolean }>(() => supabase.from('inventory').select('stock_quantity, min_stock_level, unit_price, cost_price, is_active').eq('business_id', businessId!).order('created_at', { ascending: false })),
+        fetchAllPages<{ id: string; name: string; current_balance: number; email?: string; phone?: string }>(() => supabase.from('customers').select('id, name, current_balance, email, phone').eq('business_id', businessId!).order('name', { ascending: true })),
+        fetchAllPages<{ current_balance: number }>(() => supabase.from('suppliers').select('current_balance').eq('business_id', businessId!).order('created_at', { ascending: false })),
+        fetchAllPages<{ total_amount: number; paid_amount: number; status: string }>(() => supabase.from('invoices').select('total_amount, paid_amount, status').eq('business_id', businessId!).in('status', ['sent', 'overdue']).order('created_at', { ascending: false })),
       ])
-
-      const salesData = salesResult.data || []
-      const expensesData = expensesResult.data || []
-      const inventoryData = inventoryResult.data || []
-      const customersData = customersResult.data || []
-      const suppliersData = suppliersResult.data || []
-      const invoicesData = invoicesResult.data || []
 
       const totalRevenue = salesData.reduce((sum, sale) => sum + Number(sale.total_amount || 0), 0)
       const totalExpenses = expensesData.reduce((sum, expense) => sum + Number(expense.amount || 0), 0)

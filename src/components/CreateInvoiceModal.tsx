@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useBranchContext } from "@/contexts/BranchContext";
+import { fetchAllPages } from "@/lib/fetchAllPages";
 interface Customer {
   id: string;
   name: string;
@@ -56,14 +57,16 @@ export function CreateInvoiceModal({ open, onOpenChange, onInvoiceCreated }: Cre
 
   const fetchCustomers = async () => {
     try {
-      let query = supabase.from("customers").select("id, name, email, phone");
-      
-      // Filter by branch if one is selected
-      if (selectedBranchId) {
-        query = query.eq("branch_id", selectedBranchId);
-      }
-      
-      const { data } = await query.order("name");
+      const data = await fetchAllPages<Customer>(() => {
+        let query = supabase.from("customers").select("id, name, email, phone");
+        
+        // Filter by branch if one is selected
+        if (selectedBranchId) {
+          query = query.eq("branch_id", selectedBranchId);
+        }
+        
+        return query.order("name");
+      });
       setCustomers(data || []);
     } catch (error) {
       console.error("Error fetching customers:", error);

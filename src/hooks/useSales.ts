@@ -5,6 +5,7 @@ import { getOrCreateBusinessId } from '@/lib/getOrCreateBusinessId'
 import { useEffect } from 'react'
 import { useBranchContext } from '@/contexts/BranchContext'
 import { useAuth } from '@/contexts/AuthContext'
+import { fetchAllPages } from '@/lib/fetchAllPages'
 
 export interface Sale {
   id: string
@@ -49,26 +50,26 @@ type MutationContext = {
 }
 
 const fetchSalesData = async (businessId?: string, branchId?: string | null): Promise<Sale[]> => {
-  let query = supabase
-    .from('sales')
-    .select(`
-      *,
-      customer:customers(id, name, email, phone)
-    `)
+  const buildQuery = () => {
+    let query = supabase
+      .from('sales')
+      .select(`
+        *,
+        customer:customers(id, name, email, phone)
+      `)
 
-  if (businessId) {
-    query = query.eq('business_id', businessId)
+    if (businessId) {
+      query = query.eq('business_id', businessId)
+    }
+
+    if (branchId) {
+      query = query.eq('branch_id', branchId)
+    }
+
+    return query.order('created_at', { ascending: false })
   }
 
-  if (branchId) {
-    query = query.eq('branch_id', branchId)
-  }
-
-  const { data, error } = await query.order('created_at', { ascending: false })
-
-  if (error) throw error
-
-  return (data || []) as Sale[]
+  return await fetchAllPages<Sale>(buildQuery)
 }
 
 export function useSales(businessId?: string) {

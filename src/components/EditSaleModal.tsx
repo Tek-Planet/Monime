@@ -10,6 +10,7 @@ import { Edit, Plus, Trash2 } from "lucide-react";
 import { Sale, useSales, SaleItemData } from "@/hooks/useSales";
 import { useInventory } from "@/hooks/useInventory";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPages } from "@/lib/fetchAllPages";
 
 interface Customer {
   id: string;
@@ -58,7 +59,9 @@ export function EditSaleModal({ sale, onSaleUpdated }: EditSaleModalProps) {
   }, [open]);
 
   const fetchCustomers = async () => {
-    const { data } = await supabase.from("customers").select("id, name, email, phone").order("name");
+    const data = await fetchAllPages<Customer>(() =>
+      supabase.from("customers").select("id, name, email, phone").order("name")
+    );
     setCustomers(data || []);
   };
 

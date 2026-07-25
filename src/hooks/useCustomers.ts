@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { getOrCreateBusinessId } from '@/lib/getOrCreateBusinessId'
 import { useEffect } from 'react'
 import { useBranchContext } from '@/contexts/BranchContext'
+import { fetchAllPages } from '@/lib/fetchAllPages'
 
 interface Customer {
   id: string
@@ -58,28 +59,23 @@ export function useCustomers(businessId?: string) {
           return [];
       }
 
-      let query = supabase
-        .from('customers')
-        .select('*')
+      const buildQuery = () => {
+        let query = supabase
+          .from('customers')
+          .select('*')
 
-      if (businessId) {
-        query = query.eq('business_id', businessId)
+        if (businessId) {
+          query = query.eq('business_id', businessId)
+        }
+
+        if (selectedBranchId) {
+          query = query.eq('branch_id', selectedBranchId)
+        }
+
+        return query.order('name', { ascending: true })
       }
 
-      // If a specific branch is selected, filter by it. 
-      // If selectedBranchId is null (for owners/HQ viewing "All Branches"), this filter is skipped.
-      if (selectedBranchId) {
-        query = query.eq('branch_id', selectedBranchId)
-      }
-
-      const { data, error } = await query.order('name', { ascending: true })
-
-      if (error) {
-        console.error('Error fetching customers:', error)
-        throw error
-      }
-
-      return data || []
+      return await fetchAllPages<Customer>(buildQuery)
     },
     // The query is enabled only when the user is loaded and branch access is resolved.
     enabled: !!user && branchResolved,

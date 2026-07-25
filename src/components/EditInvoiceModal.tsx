@@ -12,6 +12,7 @@ import { useInvoices, Invoice } from "@/hooks/useInvoices";
 import { useInventory } from "@/hooks/useInventory";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { fetchAllPages } from "@/lib/fetchAllPages";
 
 interface Customer {
   id: string;
@@ -82,7 +83,9 @@ export function EditInvoiceModal({ invoice, open, onOpenChange, onInvoiceUpdated
 
   const fetchCustomers = async () => {
     try {
-      const { data } = await supabase.from("customers").select("id, name, email, phone").order("name");
+      const data = await fetchAllPages<Customer>(() => 
+        supabase.from("customers").select("id, name, email, phone").order("name")
+      );
 
       setCustomers(data || []);
     } catch (error) {

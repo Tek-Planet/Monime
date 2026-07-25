@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/integrations/supabase/client'
+import { fetchAllPages } from '@/lib/fetchAllPages'
 
 export interface AnalyticsData {
   totalUsers: number
@@ -49,31 +50,43 @@ export function useAnalytics(ngoId?: string) {
         businessIds = businesses?.map(b => b.id) || []
       }
 
-      // Get total sales
-      let salesQuery = supabase
+      // Get total sales and count
+      const salesQueryHead = supabase
         .from('sales')
-        .select('total_amount', { count: 'exact' })
-      
+        .select('id', { count: 'exact', head: true })
       if (ngoId && businessIds.length > 0) {
-        salesQuery = salesQuery.in('business_id', businessIds)
+        salesQueryHead.in('business_id', businessIds)
       }
-      
-      const { data: salesData, count: totalSalesCount } = await salesQuery
+      const { count: totalSalesCount } = await salesQueryHead
 
-      // Get paid invoices
-      let invoicesQuery = supabase
+      const salesData = await fetchAllPages<{ total_amount: number }>(() => {
+        let q = supabase.from('sales').select('total_amount')
+        if (ngoId && businessIds.length > 0) {
+          q = q.in('business_id', businessIds)
+        }
+        return q.order('created_at', { ascending: false })
+      })
+
+      // Get paid invoices and count
+      const invoicesQueryHead = supabase
         .from('invoices')
-        .select('paid_amount', { count: 'exact' })
+        .select('id', { count: 'exact', head: true })
         .eq('status', 'paid')
-      
       if (ngoId && businessIds.length > 0) {
-        invoicesQuery = invoicesQuery.in('business_id', businessIds)
+        invoicesQueryHead.in('business_id', businessIds)
       }
-      
-      const { data: invoicesData, count: totalInvoicesCount } = await invoicesQuery
+      const { count: totalInvoicesCount } = await invoicesQueryHead
 
-      const salesRevenue = salesData?.reduce((sum, sale) => sum + (Number(sale.total_amount) || 0), 0) || 0
-      const invoiceRevenue = invoicesData?.reduce((sum, inv) => sum + (Number(inv.paid_amount) || 0), 0) || 0
+      const invoicesData = await fetchAllPages<{ paid_amount: number }>(() => {
+        let q = supabase.from('invoices').select('paid_amount').eq('status', 'paid')
+        if (ngoId && businessIds.length > 0) {
+          q = q.in('business_id', businessIds)
+        }
+        return q.order('created_at', { ascending: false })
+      })
+
+      const salesRevenue = salesData.reduce((sum, sale) => sum + (Number(sale.total_amount) || 0), 0)
+      const invoiceRevenue = invoicesData.reduce((sum, inv) => sum + (Number(inv.paid_amount) || 0), 0)
       const totalRevenue = salesRevenue + invoiceRevenue
       const totalSales = (totalSalesCount || 0) + (totalInvoicesCount || 0)
 

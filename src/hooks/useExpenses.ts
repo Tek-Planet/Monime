@@ -4,6 +4,7 @@ import { useToast } from '@/hooks/use-toast'
 import { getOrCreateBusinessId } from '@/lib/getOrCreateBusinessId'
 import { useEffect } from 'react'
 import { useBranchContext } from '@/contexts/BranchContext'
+import { fetchAllPages } from '@/lib/fetchAllPages'
 
 export interface Expense {
   id: string
@@ -47,28 +48,26 @@ const fetchExpensesData = async (businessId?: string, branchId?: string | null):
     return []
   }
 
-  let query = supabase
-    .from('expenses')
-    .select(`
-      *,
-      supplier:suppliers!expenses_supplier_id_fkey(id, name)
-    `)
-    .order('created_at', { ascending: false })
+  const buildQuery = () => {
+    let query = supabase
+      .from('expenses')
+      .select(`
+        *,
+        supplier:suppliers!expenses_supplier_id_fkey(id, name)
+      `)
 
-  if (businessId) {
-    query = query.eq('business_id', businessId)
+    if (businessId) {
+      query = query.eq('business_id', businessId)
+    }
+
+    if (branchId) {
+      query = query.eq('branch_id', branchId)
+    }
+
+    return query.order('created_at', { ascending: false })
   }
 
-  // Filter by branch if selected
-  if (branchId) {
-    query = query.eq('branch_id', branchId)
-  }
-
-  const { data, error } = await query
-
-  if (error) throw error
-
-  return (data || []) as Expense[]
+  return await fetchAllPages<Expense>(buildQuery)
 }
 
 export function useExpenses(businessId?: string) {
