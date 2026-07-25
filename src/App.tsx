@@ -43,6 +43,8 @@ import AdminMarketers from "./pages/admin/Marketers";
 import Privacy from "./pages/Privacy";
 import Support from "./pages/Support";
 import Setup from "./pages/Setup";
+import PaymentSuccess from "./pages/PaymentSuccess";
+import PaymentFailure from "./pages/PaymentFailure";
 
 const queryClient = new QueryClient();
 
@@ -116,6 +118,8 @@ const App = () => (
                     <Credit />
                   </PageAccessGuard>
                 } />
+                <Route path="payment-success" element={<PaymentSuccess />} />
+                <Route path="payment-failure" element={<PaymentFailure />} />
                 <Route path="admin" element={<Admin />} />
                 <Route path="admin/users" element={<AdminUsers />} />
                 <Route path="admin/ngos" element={<AdminNGOs />} />

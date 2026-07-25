@@ -58,7 +58,7 @@ serve(async (req) => {
       tx_ref,
       amount,
       currency: "SLL",
-      redirect_url: `${origin}/settings?subscription=verify&tx_ref=${tx_ref}`,
+      redirect_url: `${origin}/payment-success?subscription=verify&tx_ref=${tx_ref}`,
       customer: {
         email: user.email,
         name: user.email,

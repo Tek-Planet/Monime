@@ -12,6 +12,7 @@ import { AddSupplierModal } from "@/components/AddSupplierModal";
 import { EditSupplierModal } from "@/components/EditSupplierModal";
 import { ViewSupplierModal } from "@/components/ViewSupplierModal";
 import { RecordSupplierPaymentModal } from "@/components/RecordSupplierPaymentModal";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { formatDistanceToNow } from "date-fns";
 import { formatCategory, SUPPLIER_CATEGORIES } from "@/lib/formatCategory";
 import {
@@ -39,6 +40,7 @@ export default function Suppliers() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [supplierToDelete, setSupplierToDelete] = useState<Supplier | null>(null);
 
   const { suppliers, loading, deleteSupplier, refetch } = useSuppliers(businessId);
 
@@ -100,10 +102,8 @@ export default function Suppliers() {
     setCurrentPage(1);
   };
 
-  const handleDeleteSupplier = async (supplierId: string) => {
-    if (confirm(t("suppliers.confirmDelete"))) {
-      await deleteSupplier(supplierId);
-    }
+  const handleDeleteSupplier = (supplier: Supplier) => {
+    setSupplierToDelete(supplier);
   };
 
   const totalSuppliers = suppliers.length;
@@ -314,7 +314,7 @@ export default function Suppliers() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDeleteSupplier(supplier.id)}
+                          onClick={() => handleDeleteSupplier(supplier)}
                           className="h-8 w-8 p-0"
                         >
                           <Trash2 className="h-3 w-3" />
@@ -416,7 +416,7 @@ export default function Suppliers() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleDeleteSupplier(supplier.id)}
+                              onClick={() => handleDeleteSupplier(supplier)}
                               className="h-8 w-8 p-0"
                             >
                               <Trash2 className="h-4 w-4" />
@@ -505,6 +505,25 @@ export default function Suppliers() {
           />
         </>
       )}
+
+      {/* Delete Supplier Confirmation */}
+      <ConfirmDialog
+        open={!!supplierToDelete}
+        onOpenChange={(open) => !open && setSupplierToDelete(null)}
+        title={t("suppliers.deleteSupplier") || "Delete Supplier"}
+        description={
+          supplierToDelete
+            ? `${t("suppliers.confirmDelete") || "Are you sure you want to delete this supplier?"} (${supplierToDelete.name})`
+            : undefined
+        }
+        itemName={supplierToDelete?.name}
+        onConfirm={async () => {
+          if (supplierToDelete) {
+            await deleteSupplier(supplierToDelete.id);
+            setSupplierToDelete(null);
+          }
+        }}
+      />
     </div>
   );
 }

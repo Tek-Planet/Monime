@@ -92,8 +92,8 @@ export function RecordInvoicePaymentModal({
             reference: reference,
             notes: paymentData.notes.trim(),
             source: "invoice-payment-modal",
-            success_url: `${window.location.origin}/?payment=monime_success&ref=${reference}`,
-            cancel_url: `${window.location.origin}/?payment=monime_cancel&ref=${reference}`,
+            success_url: `${window.location.origin}/payment-success?type=invoice&payment=monime_success&ref=${reference}`,
+            cancel_url: `${window.location.origin}/payment-failure?type=invoice&payment=monime_cancel&ref=${reference}`,
           },
         });
 

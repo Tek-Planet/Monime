@@ -94,8 +94,8 @@ serve(async (req) => {
     }
 
     const origin = req.headers.get("origin") || req.headers.get("referer") || "https://tell-me-what-todo.lovable.app";
-    const successUrl = body?.success_url || `${origin}/?monime=success&ref=${encodeURIComponent(reference)}`;
-    const cancelUrl = body?.cancel_url || `${origin}/?monime=cancel&ref=${encodeURIComponent(reference)}`;
+    const successUrl = body?.success_url || `${origin}/payment-success?monime=success&ref=${encodeURIComponent(reference)}`;
+    const cancelUrl = body?.cancel_url || `${origin}/payment-failure?monime=cancel&ref=${encodeURIComponent(reference)}`;
 
     const displayName = invoiceNumber
       ? `Invoice ${invoiceNumber}`

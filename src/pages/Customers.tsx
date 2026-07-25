@@ -9,6 +9,7 @@ import { EditCustomerModal } from "@/components/EditCustomerModal";
 import { ViewCustomerModal } from "@/components/ViewCustomerModal";
 import { RecordCreditTransactionModal } from "@/components/RecordCreditTransactionModal";
 import { BirthdayReminders } from "@/components/BirthdayReminders";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import {
   Users,
   Search,
@@ -69,6 +70,7 @@ const Customers = () => {
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [viewingCustomer, setViewingCustomer] = useState<Customer | null>(null);
   const [recordingTransactionFor, setRecordingTransactionFor] = useState<Customer | null>(null);
+  const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
 
   // Reset to page 1 when filters change
   useEffect(() => {
@@ -153,9 +155,8 @@ const Customers = () => {
     return null;
   };
 
-  const handleDeleteCustomer = async (customerId: string) => {
-    if (!confirm(t("customers.confirmDelete"))) return;
-    await deleteCustomerFromHook(customerId);
+  const handleDeleteCustomer = (customer: Customer) => {
+    setCustomerToDelete(customer);
   };
 
   // Stats calculations
@@ -346,7 +347,7 @@ const Customers = () => {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDeleteCustomer(customer.id)}
+                            onClick={() => handleDeleteCustomer(customer)}
                             className="text-destructive hover:text-destructive h-8 w-8 p-0"
                           >
                             <Trash2 className="h-3 w-3" />
@@ -466,7 +467,7 @@ const Customers = () => {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => handleDeleteCustomer(customer.id)}
+                                onClick={() => handleDeleteCustomer(customer)}
                                 className="text-destructive hover:text-destructive h-9 w-9 p-0"
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -568,6 +569,25 @@ const Customers = () => {
           onTransactionRecorded={refetch}
         />
       )}
+
+      {/* Delete Customer Confirmation */}
+      <ConfirmDialog
+        open={!!customerToDelete}
+        onOpenChange={(open) => !open && setCustomerToDelete(null)}
+        title={t("customers.deleteCustomer") || "Delete Customer"}
+        description={
+          customerToDelete
+            ? `${t("customers.confirmDelete") || "Are you sure you want to delete this customer?"} (${customerToDelete.name})`
+            : undefined
+        }
+        itemName={customerToDelete?.name}
+        onConfirm={async () => {
+          if (customerToDelete) {
+            await deleteCustomerFromHook(customerToDelete.id);
+            setCustomerToDelete(null);
+          }
+        }}
+      />
     </div>
   );
 };

@@ -11,6 +11,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { AddExpenseModal } from "@/components/AddExpenseModal";
 import { EditExpenseModal } from "@/components/EditExpenseModal";
 import { ViewExpenseModal } from "@/components/ViewExpenseModal";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { EXPENSE_CATEGORIES, formatCategory } from "@/lib/formatCategory";
 import { toast } from "sonner";
 import { format, startOfDay, startOfWeek, startOfMonth, startOfQuarter, subDays } from "date-fns";
@@ -41,6 +42,7 @@ export default function Expenses() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
+  const [expenseToDelete, setExpenseToDelete] = useState<string | null>(null);
 
   const { expenses, loading, deleteExpense } = useExpenses(businessId);
   const { t, locale } = useLanguage();
@@ -154,15 +156,8 @@ export default function Expenses() {
     );
   }
 
-  const handleDeleteExpense = async (expenseId: string) => {
-    if (window.confirm(t("expenses.confirmDelete"))) {
-      try {
-        await deleteExpense(expenseId);
-        toast.success(t("expenses.deleteSuccess"));
-      } catch (error) {
-        toast.error(t("expenses.deleteFailed"));
-      }
-    }
+  const handleDeleteExpense = (expenseId: string) => {
+    setExpenseToDelete(expenseId);
   };
 
   const handleViewExpense = (expense: Expense) => {
@@ -498,6 +493,25 @@ export default function Expenses() {
           />
         </>
       )}
+
+      {/* Delete Expense Confirmation */}
+      <ConfirmDialog
+        open={!!expenseToDelete}
+        onOpenChange={(open) => !open && setExpenseToDelete(null)}
+        title={t("expenses.deleteExpense") || "Delete Expense"}
+        description={t("expenses.confirmDelete") || "Are you sure you want to delete this expense?"}
+        onConfirm={async () => {
+          if (expenseToDelete) {
+            try {
+              await deleteExpense(expenseToDelete);
+              toast.success(t("expenses.deleteSuccess") || "Expense deleted successfully");
+            } catch (error) {
+              toast.error(t("expenses.deleteFailed") || "Failed to delete expense");
+            }
+            setExpenseToDelete(null);
+          }
+        }}
+      />
     </div>
   );
 }

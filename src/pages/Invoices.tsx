@@ -9,6 +9,7 @@ import { CreateInvoiceModal } from "@/components/CreateInvoiceModal";
 import { ViewInvoiceModal } from "@/components/ViewInvoiceModal";
 import { EditInvoiceModal } from "@/components/EditInvoiceModal";
 import { RecordInvoicePaymentModal } from "@/components/RecordInvoicePaymentModal";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import {
   Pagination,
   PaginationContent,
@@ -36,6 +37,7 @@ const Invoices = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [invoiceToDelete, setInvoiceToDelete] = useState<Invoice | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -142,9 +144,8 @@ const Invoices = () => {
     return invoice.total_amount - invoice.paid_amount;
   };
 
-  const handleDeleteInvoice = async (invoiceId: string) => {
-    if (!confirm(t("invoices.confirmDelete"))) return;
-    await deleteInvoice(invoiceId);
+  const handleDeleteInvoice = (invoice: Invoice) => {
+    setInvoiceToDelete(invoice);
   };
 
   const handleViewInvoice = (invoice: Invoice) => {
@@ -367,7 +368,7 @@ const Invoices = () => {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDeleteInvoice(invoice.id)}
+                            onClick={() => handleDeleteInvoice(invoice)}
                             className="text-destructive hover:text-destructive h-8 w-8 p-0"
                           >
                             <Trash2 className="h-3 w-3" />
@@ -444,7 +445,7 @@ const Invoices = () => {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => handleDeleteInvoice(invoice.id)}
+                                onClick={() => handleDeleteInvoice(invoice)}
                                 className="text-destructive hover:text-destructive"
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -526,6 +527,25 @@ const Invoices = () => {
         open={isPaymentModalOpen}
         onOpenChange={setIsPaymentModalOpen}
         onPaymentRecorded={refetch}
+      />
+
+      {/* Delete Invoice Confirmation */}
+      <ConfirmDialog
+        open={!!invoiceToDelete}
+        onOpenChange={(open) => !open && setInvoiceToDelete(null)}
+        title={t("invoices.deleteInvoice") || "Delete Invoice"}
+        description={
+          invoiceToDelete
+            ? `${t("invoices.confirmDelete") || "Are you sure you want to delete this invoice?"} (${invoiceToDelete.invoice_number})`
+            : undefined
+        }
+        itemName={invoiceToDelete?.invoice_number}
+        onConfirm={async () => {
+          if (invoiceToDelete) {
+            await deleteInvoice(invoiceToDelete.id);
+            setInvoiceToDelete(null);
+          }
+        }}
       />
     </div>
   );

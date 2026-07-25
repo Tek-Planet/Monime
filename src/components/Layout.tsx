@@ -13,19 +13,37 @@ export function Layout() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  // Handle global redirects for third-party checkout integrations (like Monime)
-  // This avoids 404 Page Not Found errors on SPA sub-routes in local/custom hosting
+  // Handle global redirects for third-party checkout integrations (like Monime or Flutterwave)
   useEffect(() => {
+    if (location.pathname === '/payment-success' || location.pathname === '/payment-failure') {
+      return
+    }
+
     const params = new URLSearchParams(location.search)
     const subscription = params.get('subscription')
     const payment = params.get('payment')
+    const monime = params.get('monime')
+    const status = params.get('status')
+    const transactionId = params.get('transaction_id')
 
-    if (subscription) {
-      navigate(`/settings${location.search}`, { replace: true })
-    } else if (payment) {
-      navigate(`/invoices${location.search}`, { replace: true })
+    const isCancelled =
+      status === 'cancelled' ||
+      subscription === 'monime_cancel' ||
+      monime === 'cancel' ||
+      payment === 'monime_cancel'
+
+    const isSuccess =
+      subscription ||
+      monime === 'success' ||
+      payment === 'monime_success' ||
+      Boolean(transactionId)
+
+    if (isCancelled) {
+      navigate(`/payment-failure${location.search}`, { replace: true })
+    } else if (isSuccess) {
+      navigate(`/payment-success${location.search}`, { replace: true })
     }
-  }, [location.search, navigate])
+  }, [location.pathname, location.search, navigate])
 
   // Show back button on sub-routes (more than one segment after the root)
   // Adjust the condition based on your route structure if needed

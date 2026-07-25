@@ -14,6 +14,7 @@ import { ViewInvoiceModal } from "@/components/ViewInvoiceModal";
 import { TotalRevenueModal } from "@/components/TotalRevenueModal";
 import { TodaySalesModal } from "@/components/TodaySalesModal";
 import { TotalOrdersModal } from "@/components/TotalOrdersModal";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useState, useMemo, useEffect } from "react";
 import { useSales, Sale } from "@/hooks/useSales";
 import { useInvoices, Invoice } from "@/hooks/useInvoices";
@@ -62,6 +63,7 @@ const Sales = () => {
   const [revenueModalOpen, setRevenueModalOpen] = useState(false);
   const [todaySalesModalOpen, setTodaySalesModalOpen] = useState(false);
   const [totalOrdersModalOpen, setTotalOrdersModalOpen] = useState(false);
+  const [saleToDelete, setSaleToDelete] = useState<string | null>(null);
   const { business, loading: businessLoading } = useUserProfile();
   const businessId = business?.id;
   const { sales, loading, deleteSale, refetch } = useSales(businessId);
@@ -183,9 +185,8 @@ const Sales = () => {
     }
   };
 
-  const handleDeleteSale = async (saleId: string) => {
-    if (!confirm(t("sales.confirmDelete"))) return;
-    await deleteSale(saleId);
+  const handleDeleteSale = (saleId: string) => {
+    setSaleToDelete(saleId);
   };
 
   // Statistics
@@ -626,6 +627,18 @@ const Sales = () => {
         onClose={() => setTotalOrdersModalOpen(false)}
         sales={sales}
         invoices={invoices}
+      />
+      <ConfirmDialog
+        open={!!saleToDelete}
+        onOpenChange={(open) => !open && setSaleToDelete(null)}
+        title={t("sales.deleteSale") || "Delete Sale"}
+        description={t("sales.confirmDelete") || "Are you sure you want to delete this sale?"}
+        onConfirm={async () => {
+          if (saleToDelete) {
+            await deleteSale(saleToDelete);
+            setSaleToDelete(null);
+          }
+        }}
       />
     </div>
   );
