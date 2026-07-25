@@ -38,7 +38,7 @@ import { useMemo, useState } from "react";
 import { format, subMonths, isAfter, isBefore, startOfDay, endOfDay, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks } from "date-fns";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { DateRange } from "react-day-picker";
-import { cn } from "@/lib/utils";
+import { cn, parseLocalDate } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -140,17 +140,17 @@ const Reports = () => {
     };
 
     // Filter data by date range
-    const startDate = dateRange?.from ? startOfDay(dateRange.from) : subMonths(new Date(), 6);
-    const endDate = dateRange?.to ? endOfDay(dateRange.to) : new Date();
+    const startDate = dateRange?.from ? startOfDay(dateRange.from) : startOfDay(subMonths(new Date(), 6));
+    const endDate = dateRange?.to ? endOfDay(dateRange.to) : endOfDay(new Date());
 
     const filteredSales = sales.filter((sale) => {
-      const saleDate = new Date(sale.sale_date);
-      return isAfter(saleDate, startDate) && isBefore(saleDate, endDate);
+      const saleDate = parseLocalDate(sale.sale_date);
+      return saleDate >= startDate && saleDate <= endDate;
     });
 
     const filteredInvoices = invoices.filter((invoice) => {
-      const invoiceDate = new Date(invoice.invoice_date);
-      return isAfter(invoiceDate, startDate) && isBefore(invoiceDate, endDate);
+      const invoiceDate = parseLocalDate(invoice.invoice_date);
+      return invoiceDate >= startDate && invoiceDate <= endDate;
     });
 
     // Generate sales data for the date range
@@ -158,16 +158,16 @@ const Reports = () => {
     const now = new Date();
     for (let i = 5; i >= 0; i--) {
       const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
-      const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+      const monthStart = startOfMonth(date);
+      const monthEnd = endOfMonth(date);
 
       const monthSales = filteredSales.filter((sale) => {
-        const saleDate = new Date(sale.sale_date);
+        const saleDate = parseLocalDate(sale.sale_date);
         return saleDate >= monthStart && saleDate <= monthEnd;
       });
 
       const monthInvoices = filteredInvoices.filter((invoice) => {
-        const invoiceDate = new Date(invoice.invoice_date);
+        const invoiceDate = parseLocalDate(invoice.invoice_date);
         return invoiceDate >= monthStart && invoiceDate <= monthEnd && invoice.status === "paid";
       });
 
@@ -242,8 +242,8 @@ const Reports = () => {
 
     // Filter expenses by date range
     const filteredExpenses = expenses.filter((expense) => {
-      const expenseDate = new Date(expense.expense_date);
-      return isAfter(expenseDate, startDate) && isBefore(expenseDate, endDate);
+      const expenseDate = parseLocalDate(expense.expense_date);
+      return expenseDate >= startDate && expenseDate <= endDate;
     });
 
     // Expense category distribution

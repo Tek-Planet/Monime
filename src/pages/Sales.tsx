@@ -16,6 +16,8 @@ import { TodaySalesModal } from "@/components/TodaySalesModal";
 import { TotalOrdersModal } from "@/components/TotalOrdersModal";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useState, useMemo, useEffect } from "react";
+import { isSameDay } from "date-fns";
+import { parseLocalDate } from "@/lib/utils";
 import { useSales, Sale } from "@/hooks/useSales";
 import { useInvoices, Invoice } from "@/hooks/useInvoices";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -194,8 +196,8 @@ const Sales = () => {
   const invoiceRevenue = paidInvoices.reduce((sum, invoice) => sum + Number(invoice.total_amount), 0);
   const totalRevenue = salesRevenue + invoiceRevenue;
 
-  const todaySales = sales.filter((s) => new Date(s.sale_date).toDateString() === new Date().toDateString());
-  const todayInvoices = invoices.filter((i) => new Date(i.invoice_date).toDateString() === new Date().toDateString());
+  const todaySales = sales.filter((s) => isSameDay(parseLocalDate(s.sale_date), new Date()));
+  const todayInvoices = invoices.filter((i) => isSameDay(parseLocalDate(i.invoice_date), new Date()));
   const todayTotalSales = todaySales.reduce((total, sale) => {
     total += sale.total_amount;
     return total;
@@ -619,8 +621,8 @@ const Sales = () => {
       <TodaySalesModal
         isOpen={todaySalesModalOpen}
         onClose={() => setTodaySalesModalOpen(false)}
-        todaySales={sales.filter((s) => new Date(s.sale_date).toDateString() === new Date().toDateString())}
-        todayInvoices={invoices.filter((i) => new Date(i.invoice_date).toDateString() === new Date().toDateString())}
+        todaySales={todaySales}
+        todayInvoices={todayInvoices}
       />
       <TotalOrdersModal
         isOpen={totalOrdersModalOpen}

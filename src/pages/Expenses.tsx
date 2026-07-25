@@ -13,6 +13,7 @@ import { EditExpenseModal } from "@/components/EditExpenseModal";
 import { ViewExpenseModal } from "@/components/ViewExpenseModal";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { EXPENSE_CATEGORIES, formatCategory } from "@/lib/formatCategory";
+import { parseLocalDate } from "@/lib/utils";
 import { toast } from "sonner";
 import { format, startOfDay, startOfWeek, startOfMonth, startOfQuarter, subDays } from "date-fns";
 import {
@@ -96,7 +97,7 @@ export default function Expenses() {
       const matchesCategory = selectedCategory === "all" || expense.category === selectedCategory;
 
       const dateRangeStart = getDateRangeStart(selectedDateRange);
-      const matchesDateRange = !dateRangeStart || new Date(expense.expense_date) >= dateRangeStart;
+      const matchesDateRange = !dateRangeStart || parseLocalDate(expense.expense_date) >= dateRangeStart;
 
       return matchesSearch && matchesPaymentMethod && matchesCategory && matchesDateRange;
     });
