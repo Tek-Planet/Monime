@@ -149,7 +149,7 @@ serve(async (req) => {
         if (resendKey) {
           const resendClient = new Resend(resendKey);
           await resendClient.emails.send({
-            from: "MiBuks <info@mibuks.com>",
+            from: "MiBuks <noreply@updates.mibukssl.com>",
             to: [invitation.email],
             subject: `You've been invited to join ${businessName}`,
             html: `
@@ -179,7 +179,7 @@ serve(async (req) => {
           const resendClient = new Resend(resendKey);
           const businessName = invitation.businesses?.business_name || "a business";
           await resendClient.emails.send({
-            from: "MiBuks <info@mibuks.com>",
+            from: "MiBuks <noreply@updates.mibukssl.com>",
             to: [invitation.email],
             subject: `Invitation to join ${businessName} on MiBuks`,
             html: `
