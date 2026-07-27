@@ -16,8 +16,10 @@ serve(async (req) => {
   try {
     const { to, subject, documentType, documentData, pdfBase64, fileName } = await req.json();
 
+    const fromEmail = Deno.env.get("RESEND_FROM_EMAIL") || "MiBuks <noreply@mibukssl.com>";
+
     const { data, error } = await resend.emails.send({
-      from: "MiBuks <noreply@updates.mibukssl.com>",   // Your domain
+      from: fromEmail,
       to: [to],
       subject: subject,
       html: `<h2>${subject}</h2><p>Please find the attached ${documentType}.</p>`,
