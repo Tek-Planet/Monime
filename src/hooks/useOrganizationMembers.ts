@@ -141,16 +141,18 @@ export function useOrganizationMembers() {
       })
 
       if (fnError) {
-        // Try to extract error message from response
-        const errorMessage = fnData?.error || fnError.message || 'Failed to send invitation'
-        throw new Error(errorMessage)
+        console.warn('Edge function email warning:', fnError)
+        toast.info('Invitation created! Copy link from Pending Invitations to share manually.', { duration: 6000 })
+      } else if (fnData?.emailSent) {
+        toast.success('Invitation email sent successfully!')
+      } else {
+        toast.success('Invitation created! You can copy the invite link from Pending Invitations.')
       }
 
-      toast.success('Invitation email sent')
       await fetchInvitations()
     } catch (error: any) {
       console.error('Error inviting member:', error)
-      toast.error(error.message || 'Failed to send invitation')
+      toast.error(error.message || 'Failed to create invitation')
     }
   }
 

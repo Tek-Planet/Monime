@@ -8,8 +8,6 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -57,8 +55,6 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const { invitationId, redirectTo: redirectToFromClient, branchId } = body;
 
-    console.log(body, invitationId, branchId, 'Logging')
-
     const originHeader = req.headers.get("origin") || "";
     const defaultBase = originHeader || (Deno.env.get("SITE_URL") ?? "");
     const base = defaultBase.replace(/\/$/, "");
@@ -91,7 +87,9 @@ serve(async (req) => {
       .maybeSingle();
 
     const userExists = !!existingProfile;
-
+    const inviteUrl = `${base}/auth?email=${encodeURIComponent(invitation.email)}&type=invite`;
+    let emailSent = false;
+    let emailError = null;
     let data;
 
     if (userExists && existingProfile?.user_id) {
@@ -141,87 +139,96 @@ serve(async (req) => {
         .update({ status: "accepted" })
         .eq("id", invitation.id);
 
-      console.log("User already exists, sending notification email:", invitation.email);
+      console.log("User already exists, attempting notification email:", invitation.email);
 
       const loginUrl = `${base}/auth`;
       const businessName = invitation.businesses?.business_name || "a business";
 
-      const emailResponse = await resend.emails.send({
-        from: "MiBuks <info@mibuks.com>",
-        to: [invitation.email],
-        subject: `You've been invited to join ${businessName}`,
-        html: `
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          </head>
-          <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
-              <h1 style="color: white; margin: 0; font-size: 24px;">You've Been Invited!</h1>
-            </div>
-            <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
-              <p style="font-size: 16px; margin-bottom: 20px;">
-                Hello! You have been invited to join <strong>${businessName}</strong> as a team member on MiBuks.
-              </p>
-              <p style="font-size: 16px; margin-bottom: 25px;">
-                Since you already have an account, simply log in to access the business and start collaborating with your team.
-              </p>
-              <div style="text-align: center; margin: 30px 0;">
-                <a href="${loginUrl}" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block; font-size: 16px;">
-                  Log In Now
-                </a>
-              </div>
-              <p style="font-size: 14px; color: #6b7280; margin-top: 25px;">
-                Once logged in, you'll have access to the pages that have been assigned to you by the business owner.
-              </p>
-              <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 25px 0;">
-              <p style="font-size: 12px; color: #9ca3af; text-align: center;">
-                If you didn't expect this invitation, you can safely ignore this email.
-              </p>
-            </div>
-          </body>
-          </html>
-        `,
-      });
-
-      console.log("Notification email sent successfully:", emailResponse);
-      data = { message: "Notification sent to existing user", emailResponse };
-    } else {
-      const result = await supabaseAdmin.auth.admin.inviteUserByEmail(invitation.email, {
-        redirectTo,
-        data: {
-          business_name: invitation.businesses?.business_name,
-          business_id: invitation.business_id,
-          invitation_id: invitation.id,
-          branch_id: invitation.branch_id ?? null,
-          password_set: false,
-        },
-      });
-
-      if (result.error) {
-        console.error("Error sending invitation:", result.error);
-
-        // Handle rate limit specifically
-        if (result.error.status === 429 || result.error.message?.includes("rate limit")) {
-          return new Response(
-            JSON.stringify({ error: "Email rate limit exceeded. Please wait a few minutes and try again." }),
-            {
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-              status: 429,
-            }
-          );
+      try {
+        const resendKey = Deno.env.get("RESEND_API_KEY");
+        if (resendKey) {
+          const resendClient = new Resend(resendKey);
+          await resendClient.emails.send({
+            from: "MiBuks <info@mibuks.com>",
+            to: [invitation.email],
+            subject: `You've been invited to join ${businessName}`,
+            html: `
+              <!DOCTYPE html>
+              <html>
+              <body style="font-family: sans-serif; padding: 20px;">
+                <h2>You've Been Invited!</h2>
+                <p>You have been invited to join <strong>${businessName}</strong> on MiBuks.</p>
+                <p><a href="${loginUrl}" style="background: #4f46e5; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none;">Log In Now</a></p>
+              </body>
+              </html>
+            `,
+          });
+          emailSent = true;
         }
-
-        throw result.error;
+      } catch (err: any) {
+        console.warn("Resend email failed:", err?.message || err);
+        emailError = err?.message || "Email provider unavailable";
       }
 
-      data = result.data;
-      console.log("Invitation sent successfully to:", invitation.email);
+      data = { message: "Notification processed for existing user", emailSent, emailError, inviteUrl };
+    } else {
+      // Try sending invite email via Supabase Admin or Resend
+      const resendKey = Deno.env.get("RESEND_API_KEY");
+      if (resendKey) {
+        try {
+          const resendClient = new Resend(resendKey);
+          const businessName = invitation.businesses?.business_name || "a business";
+          await resendClient.emails.send({
+            from: "MiBuks <info@mibuks.com>",
+            to: [invitation.email],
+            subject: `Invitation to join ${businessName} on MiBuks`,
+            html: `
+              <!DOCTYPE html>
+              <html>
+              <body style="font-family: sans-serif; padding: 20px;">
+                <h2>Team Invitation</h2>
+                <p>You have been invited to join <strong>${businessName}</strong> on MiBuks.</p>
+                <p><a href="${inviteUrl}" style="background: #4f46e5; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none;">Accept Invitation & Sign Up</a></p>
+                <p style="color: #666; font-size: 12px;">Link: ${inviteUrl}</p>
+              </body>
+              </html>
+            `,
+          });
+          emailSent = true;
+        } catch (rErr: any) {
+          console.warn("Resend invite failed, falling back to auth invite:", rErr?.message || rErr);
+        }
+      }
+
+      if (!emailSent) {
+        try {
+          const result = await supabaseAdmin.auth.admin.inviteUserByEmail(invitation.email, {
+            redirectTo,
+            data: {
+              business_name: invitation.businesses?.business_name,
+              business_id: invitation.business_id,
+              invitation_id: invitation.id,
+              branch_id: invitation.branch_id ?? null,
+              password_set: false,
+            },
+          });
+          if (!result.error) {
+            emailSent = true;
+            data = result.data;
+          } else {
+            console.warn("Supabase inviteUserByEmail failed:", result.error.message);
+            emailError = result.error.message;
+          }
+        } catch (aErr: any) {
+          console.warn("Supabase auth invite error:", aErr?.message || aErr);
+          emailError = aErr?.message || "Auth mailer unavailable";
+        }
+      }
+
+      data = { message: emailSent ? "Invitation sent successfully" : "Invitation created (email sending pending/bypassed)", emailSent, emailError, inviteUrl };
     }
 
-    return new Response(JSON.stringify({ success: true, data }), {
+    return new Response(JSON.stringify({ success: true, emailSent, inviteUrl, data }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
@@ -239,4 +246,3 @@ serve(async (req) => {
     });
   }
 });
-

@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useOrganizationMembers } from '@/hooks/useOrganizationMembers'
 import { useLanguage } from '@/contexts/LanguageContext'
-import { UserPlus, Mail, Trash2, Settings, Loader2 } from 'lucide-react'
+import { UserPlus, Mail, Trash2, Settings, Loader2, Copy, Check, Link } from 'lucide-react'
+import { toast } from 'sonner'
 import { InviteMemberModal } from './InviteMemberModal'
 import { EditMemberAccessModal } from './EditMemberAccessModal'
 import {
@@ -25,6 +26,15 @@ export function TeamManagement() {
   const [editMemberId, setEditMemberId] = useState<string | null>(null)
   const [removeMemberId, setRemoveMemberId] = useState<string | null>(null)
   const [cancelInvitationId, setCancelInvitationId] = useState<string | null>(null)
+  const [copiedInviteId, setCopiedInviteId] = useState<string | null>(null)
+
+  const handleCopyLink = (email: string, id: string) => {
+    const inviteUrl = `${window.location.origin}/auth?email=${encodeURIComponent(email)}&type=invite`
+    navigator.clipboard.writeText(inviteUrl)
+    setCopiedInviteId(id)
+    toast.success('Invitation link copied to clipboard!')
+    setTimeout(() => setCopiedInviteId(null), 2000)
+  }
 
   const getPageName = (page: string) => {
     return t(`nav.${page}` as any) || page
@@ -144,14 +154,33 @@ export function TeamManagement() {
                       </div>
                     </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setCancelInvitationId(invitation.id)}
-                    className="self-end sm:self-center"
-                  >
-                    {t('modal.cancel')}
-                  </Button>
+                  <div className="flex items-center gap-2 self-end sm:self-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleCopyLink(invitation.email, invitation.id)}
+                      className="gap-1.5 text-xs"
+                    >
+                      {copiedInviteId === invitation.id ? (
+                        <>
+                          <Check className="h-3.5 w-3.5 text-green-600" />
+                          Copied
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-3.5 w-3.5" />
+                          Copy Link
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setCancelInvitationId(invitation.id)}
+                    >
+                      {t('modal.cancel')}
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>

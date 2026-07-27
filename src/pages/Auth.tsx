@@ -128,6 +128,14 @@ export default function Auth() {
   const hashValue = window.location.hash;
 
   useEffect(() => {
+    const emailParam = searchParams.get("email");
+    if (emailParam && !email) {
+      setEmail(emailParam);
+      if (queryType === "invite") {
+        setActiveTab("signup");
+      }
+    }
+
     const runAuthFlow = async () => {
       const { errorCode, errorDescription } = getErrorFromUrl();
 
