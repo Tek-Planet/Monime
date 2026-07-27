@@ -8,6 +8,73 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function renderEmailTemplate({
+  title,
+  bodyHtml,
+  buttonText,
+  buttonUrl,
+}: {
+  title: string;
+  bodyHtml: string;
+  buttonText?: string;
+  buttonUrl?: string;
+}) {
+  const year = new Date().getFullYear();
+  return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>${title}</title>
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #f4f6f8; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+      <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f4f6f8; padding: 40px 12px;">
+        <tr>
+          <td align="center">
+            <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 560px; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
+              <tr>
+                <td style="padding: 24px 32px; background-color: #0f172a; text-align: left;">
+                  <span style="color: #ffffff; font-size: 22px; font-weight: 700; letter-spacing: -0.5px;">MiBuks</span>
+                  <span style="color: #94a3b8; font-size: 13px; margin-left: 10px; font-weight: 400;">| Smart Business Management</span>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 32px; color: #334155; font-size: 15px; line-height: 1.6;">
+                  <h2 style="margin: 0 0 16px 0; color: #0f172a; font-size: 20px; font-weight: 600;">${title}</h2>
+                  ${bodyHtml}
+                  ${
+                    buttonText && buttonUrl
+                      ? `
+                        <div style="margin: 28px 0; text-align: center;">
+                          <a href="${buttonUrl}" style="background-color: #2563eb; color: #ffffff; padding: 12px 28px; border-radius: 8px; font-weight: 600; text-decoration: none; display: inline-block; font-size: 15px; box-shadow: 0 2px 4px rgba(37,99,235,0.2);">
+                            ${buttonText}
+                          </a>
+                        </div>
+                        <p style="margin: 0; color: #64748b; font-size: 12px; line-height: 1.5;">
+                          If the button doesn't work, copy and paste this link into your browser:<br>
+                          <a href="${buttonUrl}" style="color: #2563eb; word-break: break-all;">${buttonUrl}</a>
+                        </p>
+                      `
+                      : ''
+                  }
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 20px 32px; background-color: #f8fafc; border-top: 1px solid #f1f5f9; text-align: center;">
+                  <p style="margin: 0 0 4px 0; color: #64748b; font-size: 13px; font-weight: 500;">MiBuks — Empowering Your Business</p>
+                  <p style="margin: 0; color: #94a3b8; font-size: 12px;">© ${year} MiBuks. All rights reserved.</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -150,20 +217,18 @@ serve(async (req) => {
         const resendKey = Deno.env.get("RESEND_API_KEY");
         if (resendKey) {
           const resendClient = new Resend(resendKey);
+          const htmlContent = renderEmailTemplate({
+            title: "You've Been Invited!",
+            bodyHtml: `<p style="margin: 0 0 16px 0;">You have been invited to join <strong>${businessName}</strong> on MiBuks.</p>`,
+            buttonText: "Log In Now",
+            buttonUrl: loginUrl,
+          });
+
           await resendClient.emails.send({
             from: fromEmail,
             to: [invitation.email],
             subject: `You've been invited to join ${businessName}`,
-            html: `
-              <!DOCTYPE html>
-              <html>
-              <body style="font-family: sans-serif; padding: 20px;">
-                <h2>You've Been Invited!</h2>
-                <p>You have been invited to join <strong>${businessName}</strong> on MiBuks.</p>
-                <p><a href="${loginUrl}" style="background: #4f46e5; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none;">Log In Now</a></p>
-              </body>
-              </html>
-            `,
+            html: htmlContent,
           });
           emailSent = true;
         }
@@ -180,21 +245,18 @@ serve(async (req) => {
         try {
           const resendClient = new Resend(resendKey);
           const businessName = invitation.businesses?.business_name || "a business";
+          const htmlContent = renderEmailTemplate({
+            title: "Team Invitation",
+            bodyHtml: `<p style="margin: 0 0 16px 0;">You have been invited to join <strong>${businessName}</strong> on MiBuks. Click below to accept your invitation and access your account:</p>`,
+            buttonText: "Accept Invitation & Sign Up",
+            buttonUrl: inviteUrl,
+          });
+
           await resendClient.emails.send({
             from: fromEmail,
             to: [invitation.email],
             subject: `Invitation to join ${businessName} on MiBuks`,
-            html: `
-              <!DOCTYPE html>
-              <html>
-              <body style="font-family: sans-serif; padding: 20px;">
-                <h2>Team Invitation</h2>
-                <p>You have been invited to join <strong>${businessName}</strong> on MiBuks.</p>
-                <p><a href="${inviteUrl}" style="background: #4f46e5; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none;">Accept Invitation & Sign Up</a></p>
-                <p style="color: #666; font-size: 12px;">Link: ${inviteUrl}</p>
-              </body>
-              </html>
-            `,
+            html: htmlContent,
           });
           emailSent = true;
         } catch (rErr: any) {
