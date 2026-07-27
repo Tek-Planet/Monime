@@ -71,6 +71,8 @@ Deno.serve(async (req) => {
       throw new Error("RESEND_API_KEY not configured");
     }
 
+    const fromEmail = Deno.env.get("RESEND_FROM_EMAIL") || "MiBuks <noreply@mibukssl.com>";
+
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -78,7 +80,7 @@ Deno.serve(async (req) => {
         Authorization: `Bearer ${resendApiKey}`,
       },
       body: JSON.stringify({
-        from: "MiBuks <noreply@updates.mibukssl.com>",
+        from: fromEmail,
         to: [recipientEmail],
         subject,
         html: htmlContent,
