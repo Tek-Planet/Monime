@@ -78,7 +78,7 @@ Deno.serve(async (req) => {
         Authorization: `Bearer ${resendApiKey}`,
       },
       body: JSON.stringify({
-        from: "Admin Notifications <info@mibuks.com>",
+        from: "MiBuks <noreply@updates.mibukssl.com>",
         to: [recipientEmail],
         subject,
         html: htmlContent,
