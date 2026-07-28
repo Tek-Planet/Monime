@@ -173,11 +173,25 @@ export default function Auth() {
           return;
         }
 
+        try {
+          await supabase.functions.invoke("accept-team-invitation");
+          window.dispatchEvent(new CustomEvent("user-data-updated"));
+        } catch (err) {
+          console.warn("accept-team-invitation error:", err);
+        }
+
         navigate("/");
         return;
       }
 
       if (user) {
+        try {
+          await supabase.functions.invoke("accept-team-invitation");
+          window.dispatchEvent(new CustomEvent("user-data-updated"));
+        } catch (err) {
+          console.warn("accept-team-invitation error:", err);
+        }
+
         navigate("/");
       }
     };
@@ -223,6 +237,12 @@ export default function Auth() {
           });
         }
       } else {
+        try {
+          await supabase.functions.invoke("accept-team-invitation");
+          window.dispatchEvent(new CustomEvent("user-data-updated"));
+        } catch (err) {
+          console.warn("accept-team-invitation error:", err);
+        }
         toast({
           title: t("auth.welcomeBack"),
           description: t("auth.signInSuccess"),

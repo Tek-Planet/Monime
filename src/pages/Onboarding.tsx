@@ -34,19 +34,29 @@ export default function Onboarding() {
     const checkMembershipStatus = async () => {
       if (!user) return
 
+      try {
+        await supabase.functions.invoke('accept-team-invitation')
+      } catch (err) {
+        console.warn('Accept invitation error in onboarding:', err)
+      }
+
       const { data: memberData } = await supabase
         .from('organization_members')
-        .select('id')
+        .select('id, business_id')
         .eq('user_id', user.id)
-        .single()
+        .eq('is_active', true)
+        .maybeSingle()
 
       if (memberData) {
         setIsInvitedMember(true)
+        await refetch()
+        window.dispatchEvent(new CustomEvent("user-data-updated"))
+        navigate('/', { replace: true })
       }
     }
 
     checkMembershipStatus()
-  }, [user])
+  }, [user, navigate, refetch])
 
   const steps = [
     { id: 'user-details', title: t("onboarding.step.personalInfo"), description: t("onboarding.step.personalInfoDesc") },

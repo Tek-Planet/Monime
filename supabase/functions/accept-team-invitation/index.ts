@@ -32,25 +32,36 @@ serve(async (req) => {
     if (!user.email) throw new Error("User email is missing");
 
     const supabaseAdmin = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
-    const normalizedEmail = user.email.toLowerCase();
+    const normalizedEmail = user.email.toLowerCase().trim();
 
     // --- 1. FIND THE CORRECT INVITATION ---
-    const { data: pendingInvitation, error: invError } = await supabaseAdmin
+    const { data: pendingInvitations, error: invError } = await supabaseAdmin
       .from("organization_invitations")
-      .select("id, business_id, invited_by, accessible_pages, branch_id, created_at")
-      .eq("email", normalizedEmail)
+      .select("id, business_id, invited_by, accessible_pages, branch_id, created_at, expires_at")
+      .ilike("email", normalizedEmail)
       .eq("status", "pending")
-      .gt("expires_at", new Date().toISOString())
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .single();
+      .order("created_at", { ascending: false });
 
-    if (invError && invError.code === 'PGRST116') {
-      return new Response(JSON.stringify({ success: true, data: { alreadyProcessed: true, message: "No single pending invitation found." } }), {
+    if (invError) throw invError;
+
+    if (!pendingInvitations || pendingInvitations.length === 0) {
+      return new Response(JSON.stringify({ success: true, data: { alreadyProcessed: true, message: "No pending invitation found." } }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200
       });
     }
-    if (invError) throw invError;
+
+    const now = new Date();
+    const validInvitations = pendingInvitations.filter(inv => {
+      if (!inv.expires_at) return true;
+      return new Date(inv.expires_at) > now;
+    });
+
+    const pendingInvitation = validInvitations[0] || pendingInvitations[0];
+    if (!pendingInvitation) {
+      return new Response(JSON.stringify({ success: true, data: { alreadyProcessed: true, message: "Invitation expired." } }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200
+      });
+    }
 
     const nowIso = new Date().toISOString();
 
@@ -104,9 +115,10 @@ serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     );
 
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errMessage = error instanceof Error ? error.message : String(error);
     console.error("Error in accept-team-invitation:", error);
-    return new Response(JSON.stringify({ error: error?.message || "Unknown error" }), {
+    return new Response(JSON.stringify({ error: errMessage || "Unknown error" }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });
