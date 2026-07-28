@@ -239,17 +239,49 @@ serve(async (req) => {
 
       data = { message: "Notification processed for existing user", emailSent, emailError, inviteUrl };
     } else {
-      // Try sending invite email via Supabase Admin or Resend
+      const fromEmail = Deno.env.get("RESEND_FROM_EMAIL") || "MiBuks <noreply@mibukssl.com>";
+      const businessName = invitation.businesses?.business_name || "a business";
+
+      // 1. Generate auth invite link with Supabase Admin (creates auth user and generates token link)
+      let actionLink: string | null = null;
+      try {
+        const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+          type: "invite",
+          email: invitation.email,
+          options: {
+            redirectTo,
+            data: {
+              business_name: invitation.businesses?.business_name,
+              business_id: invitation.business_id,
+              invitation_id: invitation.id,
+              branch_id: invitation.branch_id ?? null,
+              password_set: false,
+            },
+          },
+        });
+
+        if (!linkError && linkData?.properties?.action_link) {
+          actionLink = linkData.properties.action_link;
+        } else if (linkError) {
+          console.warn("generateLink error, falling back:", linkError.message);
+        }
+      } catch (gErr: unknown) {
+        const gMsg = gErr instanceof Error ? gErr.message : String(gErr);
+        console.warn("generateLink exception:", gMsg);
+      }
+
+      const finalInviteUrl = actionLink || inviteUrl;
+
+      // 2. Send custom styled MiBuks email using Resend if API key exists
       const resendKey = Deno.env.get("RESEND_API_KEY");
       if (resendKey) {
         try {
           const resendClient = new Resend(resendKey);
-          const businessName = invitation.businesses?.business_name || "a business";
           const htmlContent = renderEmailTemplate({
             title: "Team Invitation",
-            bodyHtml: `<p style="margin: 0 0 16px 0;">You have been invited to join <strong>${businessName}</strong> on MiBuks. Click below to accept your invitation and access your account:</p>`,
+            bodyHtml: `<p style="margin: 0 0 16px 0;">You have been invited to join <strong>${businessName}</strong> on MiBuks. Click below to accept your invitation and set up your password to access your assigned modules:</p>`,
             buttonText: "Accept Invitation & Sign Up",
-            buttonUrl: inviteUrl,
+            buttonUrl: finalInviteUrl,
           });
 
           await resendClient.emails.send({
@@ -259,11 +291,13 @@ serve(async (req) => {
             html: htmlContent,
           });
           emailSent = true;
-        } catch (rErr: any) {
-          console.warn("Resend invite failed, falling back to auth invite:", rErr?.message || rErr);
+        } catch (rErr: unknown) {
+          const rMsg = rErr instanceof Error ? rErr.message : String(rErr);
+          console.warn("Resend invite failed, falling back to auth invite:", rMsg);
         }
       }
 
+      // 3. Fallback to built-in Supabase Auth email if Resend wasn't configured or failed
       if (!emailSent) {
         try {
           const result = await supabaseAdmin.auth.admin.inviteUserByEmail(invitation.email, {
@@ -283,13 +317,14 @@ serve(async (req) => {
             console.warn("Supabase inviteUserByEmail failed:", result.error.message);
             emailError = result.error.message;
           }
-        } catch (aErr: any) {
-          console.warn("Supabase auth invite error:", aErr?.message || aErr);
-          emailError = aErr?.message || "Auth mailer unavailable";
+        } catch (aErr: unknown) {
+          const aMsg = aErr instanceof Error ? aErr.message : String(aErr);
+          console.warn("Supabase auth invite error:", aMsg);
+          emailError = aMsg || "Auth mailer unavailable";
         }
       }
 
-      data = { message: emailSent ? "Invitation sent successfully" : "Invitation created (email sending pending/bypassed)", emailSent, emailError, inviteUrl };
+      data = { message: emailSent ? "Invitation sent successfully" : "Invitation created (email sending pending/bypassed)", emailSent, emailError, inviteUrl: finalInviteUrl };
     }
 
     return new Response(JSON.stringify({ success: true, emailSent, inviteUrl, data }), {
