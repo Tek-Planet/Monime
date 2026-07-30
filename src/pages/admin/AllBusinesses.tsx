@@ -160,7 +160,7 @@ export default function AllBusinesses() {
                     </Select>
                   </div>
                   <div className="flex-1">
-                    <label className="text-sm font-medium mb-2 block">{t("admin.ngoLabel")}</label>
+                    {/* <label className="text-sm font-medium mb-2 block">{t("admin.ngoLabel")}</label> */}
                     <Select value={ngoFilter} onValueChange={(v) => { setNgoFilter(v); setCurrentPage(1); }}>
                       <SelectTrigger><SelectValue placeholder={t("admin.allNGOs")} /></SelectTrigger>
                       <SelectContent>
