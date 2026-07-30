@@ -208,7 +208,7 @@ serve(async (req) => {
 
       console.log("User already exists, attempting notification email:", invitation.email);
 
-      const loginUrl = `${base}/auth`;
+      const loginUrl = `${base}/auth?type=invite`;
       const businessName = invitation.businesses?.business_name || "a business";
 
       const fromEmail = Deno.env.get("RESEND_FROM_EMAIL") || "MiBuks <noreply@mibukssl.com>";
@@ -219,22 +219,23 @@ serve(async (req) => {
           const resendClient = new Resend(resendKey);
           const htmlContent = renderEmailTemplate({
             title: "You've Been Invited!",
-            bodyHtml: `<p style="margin: 0 0 16px 0;">You have been invited to join <strong>${businessName}</strong> on MiBuks.</p>`,
-            buttonText: "Log In Now",
+            bodyHtml: `<p style="margin: 0 0 16px 0;">You have been invited to join <strong>${businessName}</strong> on MiBuks. Click below to log in to your account and access your approved modules:</p>`,
+            buttonText: "Accept Invitation & Log In",
             buttonUrl: loginUrl,
           });
 
           await resendClient.emails.send({
             from: fromEmail,
             to: [invitation.email],
-            subject: `You've been invited to join ${businessName}`,
+            subject: `You've been invited to join ${businessName} on MiBuks`,
             html: htmlContent,
           });
           emailSent = true;
         }
-      } catch (err: any) {
-        console.warn("Resend email failed:", err?.message || err);
-        emailError = err?.message || "Email provider unavailable";
+      } catch (err: unknown) {
+        const errMessage = err instanceof Error ? err.message : String(err);
+        console.warn("Resend email failed:", errMessage);
+        emailError = errMessage;
       }
 
       data = { message: "Notification processed for existing user", emailSent, emailError, inviteUrl };
