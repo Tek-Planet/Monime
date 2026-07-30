@@ -208,7 +208,24 @@ serve(async (req) => {
 
       console.log("User already exists, attempting notification email:", invitation.email);
 
-      const loginUrl = `${base}/auth?type=invite`;
+      let actionLink: string | null = null;
+      try {
+        const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+          type: "magiclink",
+          email: invitation.email,
+          options: {
+            redirectTo: `${redirectTo}?type=invite`,
+          },
+        });
+
+        if (!linkError && linkData?.properties?.action_link) {
+          actionLink = linkData.properties.action_link;
+        }
+      } catch (gErr: unknown) {
+        console.warn("generateLink exception for existing user:", gErr);
+      }
+
+      const loginUrl = actionLink || `${base}/auth?type=invite`;
       const businessName = invitation.businesses?.business_name || "a business";
 
       const fromEmail = Deno.env.get("RESEND_FROM_EMAIL") || "MiBuks <noreply@mibukssl.com>";
