@@ -101,7 +101,7 @@ export function useInventory(businessId?: string) {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [queryClient, selectedBranchId])
+  }, [queryClient, businessId, selectedBranchId])
 
   const addInventoryItemMutation = useMutation({
     mutationFn: async (itemData: InventoryFormData) => {
