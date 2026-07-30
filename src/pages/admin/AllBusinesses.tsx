@@ -18,7 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, Eye, Building2, MapPin, List } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAdminType } from "@/hooks/admin/useAdminType";
-import { useAdminBusinesses, useNGOsForFilter } from "@/hooks/admin/useAdminBusinesses";
+import { useAdminBusinesses } from "@/hooks/admin/useAdminBusinesses";
 import { BusinessLocationsMap } from "@/components/maps/BusinessLocationsMap";
 import { AddressSearch } from "@/components/maps/AddressSearch";
 import { useState, useEffect } from "react";
@@ -30,16 +30,13 @@ export default function AllBusinesses() {
   const { adminType, loading: adminLoading } = useAdminType();
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
-  const [ngoFilter, setNgoFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const [searchedLocation, setSearchedLocation] = useState<{ lat: number; lng: number } | null>(null);
   const isSystemAdmin = adminType === "system_admin";
-  const { data: ngosData = [] } = useNGOsForFilter();
   const { data, isLoading } = useAdminBusinesses({
     search: searchQuery,
     typeFilter,
-    ngoFilter,
     page: currentPage,
     pageSize: ITEMS_PER_PAGE,
   });
@@ -144,36 +141,19 @@ export default function AllBusinesses() {
                     />
                   </div>
                 </div>
-                <div className="flex flex-1 gap-4">
-                  <div className="flex-1">
-                    <label className="text-sm font-medium mb-2 block">{t("admin.typeLabel")}</label>
-                    <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v); setCurrentPage(1); }}>
-                      <SelectTrigger><SelectValue placeholder={t("admin.allTypes")} /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">{t("admin.allTypes")}</SelectItem>
-                        <SelectItem value="retail">{t("admin.retail")}</SelectItem>
-                        <SelectItem value="wholesale">{t("admin.wholesale")}</SelectItem>
-                        <SelectItem value="service">{t("admin.service")}</SelectItem>
-                        <SelectItem value="manufacturing">{t("admin.manufacturing")}</SelectItem>
-                        <SelectItem value="other">{t("admin.other")}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex-1">
-                    {/* <label className="text-sm font-medium mb-2 block">{t("admin.ngoLabel")}</label> */}
-                    <Select value={ngoFilter} onValueChange={(v) => { setNgoFilter(v); setCurrentPage(1); }}>
-                      <SelectTrigger><SelectValue placeholder={t("admin.allNGOs")} /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">{t("admin.allNGOs")}</SelectItem>
-                        <SelectItem value="unassigned">{t("admin.unassigned")}</SelectItem>
-                        {ngosData.map((ngo) => (
-                          <SelectItem key={ngo.id} value={ngo.id}>
-                            {ngo.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div className="w-full sm:w-48">
+                  <label className="text-sm font-medium mb-2 block">{t("admin.typeLabel")}</label>
+                  <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v); setCurrentPage(1); }}>
+                    <SelectTrigger><SelectValue placeholder={t("admin.allTypes")} /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t("admin.allTypes")}</SelectItem>
+                      <SelectItem value="retail">{t("admin.retail")}</SelectItem>
+                      <SelectItem value="wholesale">{t("admin.wholesale")}</SelectItem>
+                      <SelectItem value="service">{t("admin.service")}</SelectItem>
+                      <SelectItem value="manufacturing">{t("admin.manufacturing")}</SelectItem>
+                      <SelectItem value="other">{t("admin.other")}</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -199,13 +179,12 @@ export default function AllBusinesses() {
                       <div className="font-medium text-primary">{business.business_name}</div>
                       {business.business_type && <Badge variant="outline">{business.business_type}</Badge>}
                     </div>
-                    <div className="mb-2">
-                      {business.ngos ? (
-                        <Badge variant="secondary">{business.ngos.name}</Badge>
-                      ) : (
-                        <Badge variant="outline">{t("admin.unassigned")}</Badge>
-                      )}
-                    </div>
+                    {business.address && (
+                      <div className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                        <MapPin className="h-3 w-3 shrink-0" />
+                        <span>{business.address}</span>
+                      </div>
+                    )}
                     <div className="text-sm text-muted-foreground mb-1">
                       {business.email && <div className="break-all">{business.email}</div>}
                       {business.phone && <div>{business.phone}</div>}
@@ -224,7 +203,7 @@ export default function AllBusinesses() {
                     <TableRow>
                       <TableHead>{t("admin.name")}</TableHead>
                       <TableHead>{t("admin.type")}</TableHead>
-                      <TableHead>{t("admin.ngo")}</TableHead>
+                      <TableHead>{t("common.address")}</TableHead>
                       <TableHead>{t("admin.contact")}</TableHead>
                       <TableHead>{t("admin.joined")}</TableHead>
                       <TableHead>{t("admin.actions")}</TableHead>
@@ -237,12 +216,8 @@ export default function AllBusinesses() {
                         <TableCell>
                           {business.business_type ? <Badge variant="outline">{business.business_type}</Badge> : "-"}
                         </TableCell>
-                        <TableCell>
-                          {business.ngos ? (
-                            <Badge variant="secondary">{business.ngos.name}</Badge>
-                          ) : (
-                            <Badge variant="outline">{t("admin.unassigned")}</Badge>
-                          )}
+                        <TableCell className="max-w-[200px] truncate" title={business.address || undefined}>
+                          {business.address || "-"}
                         </TableCell>
                         <TableCell>
                           <div className="text-sm">
