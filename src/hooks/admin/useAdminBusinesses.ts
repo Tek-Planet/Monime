@@ -203,29 +203,29 @@ export function useBusinessStats(businessId: string | undefined) {
       const thirtyDaysAgo = new Date()
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
-      const [customersResult, salesData, expensesData, invoicesResult, inventoryResult, suppliersResult, recentSalesResult, recentExpensesResult] = await Promise.all([
-        supabase.from('customers').select('id', { count: 'exact', head: true }).eq('business_id', businessId!),
+      const [customersData, salesData, expensesData, invoicesData, inventoryData, suppliersData, recentSalesData, recentExpensesData] = await Promise.all([
+        fetchAllPages<{ id: string }>(() => supabase.from('customers').select('id').eq('business_id', businessId!)),
         fetchAllPages<{ total_amount: number }>(() => supabase.from('sales').select('total_amount').eq('business_id', businessId!).order('created_at', { ascending: false })),
         fetchAllPages<{ amount: number }>(() => supabase.from('expenses').select('amount').eq('business_id', businessId!).order('created_at', { ascending: false })),
-        supabase.from('invoices').select('id', { count: 'exact', head: true }).eq('business_id', businessId!),
-        supabase.from('inventory').select('id', { count: 'exact', head: true }).eq('business_id', businessId!),
-        supabase.from('suppliers').select('id', { count: 'exact', head: true }).eq('business_id', businessId!),
-        supabase.from('sales').select('id', { count: 'exact', head: true }).eq('business_id', businessId!).gte('sale_date', thirtyDaysAgo.toISOString().split('T')[0]),
-        supabase.from('expenses').select('id', { count: 'exact', head: true }).eq('business_id', businessId!).gte('expense_date', thirtyDaysAgo.toISOString().split('T')[0]),
+        fetchAllPages<{ id: string }>(() => supabase.from('invoices').select('id').eq('business_id', businessId!)),
+        fetchAllPages<{ id: string }>(() => supabase.from('inventory').select('id').eq('business_id', businessId!)),
+        fetchAllPages<{ id: string }>(() => supabase.from('suppliers').select('id').eq('business_id', businessId!)),
+        fetchAllPages<{ id: string }>(() => supabase.from('sales').select('id').eq('business_id', businessId!).gte('sale_date', thirtyDaysAgo.toISOString().split('T')[0])),
+        fetchAllPages<{ id: string }>(() => supabase.from('expenses').select('id').eq('business_id', businessId!).gte('expense_date', thirtyDaysAgo.toISOString().split('T')[0])),
       ])
 
       const totalSales = salesData.reduce((sum, sale) => sum + Number(sale.total_amount || 0), 0)
       const totalExpenses = expensesData.reduce((sum, expense) => sum + Number(expense.amount || 0), 0)
 
       return {
-        totalCustomers: customersResult.count || 0,
+        totalCustomers: customersData.length,
         totalSales,
         totalExpenses,
-        totalInvoices: invoicesResult.count || 0,
-        totalInventory: inventoryResult.count || 0,
-        totalSuppliers: suppliersResult.count || 0,
-        recentSalesCount: recentSalesResult.count || 0,
-        recentExpensesCount: recentExpensesResult.count || 0,
+        totalInvoices: invoicesData.length,
+        totalInventory: inventoryData.length,
+        totalSuppliers: suppliersData.length,
+        recentSalesCount: recentSalesData.length,
+        recentExpensesCount: recentExpensesData.length,
       }
     },
     enabled: !!businessId,

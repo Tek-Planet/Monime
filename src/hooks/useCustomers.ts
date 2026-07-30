@@ -50,7 +50,7 @@ export function useCustomers(businessId?: string) {
     queryFn: async (): Promise<Customer[]> => {
       if (!user) return []
 
-      const canViewAll = isBusinessOwner || isHqMember;
+      const canViewAll = isBusinessOwner || isHqMember || !!businessId;
       
       // This is a hard guard. If branch context is resolved and a non-privileged user
       // does not have a branch selected, we must prevent fetching aggregated data.
