@@ -16,8 +16,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Search, Plus, Users, DollarSign, Copy } from "lucide-react";
+import { ArrowLeft, Search, Plus, Users, DollarSign, Copy, Trash2 } from "lucide-react";
 import { format } from "date-fns";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function AdminMarketers() {
   const { t } = useLanguage();
@@ -163,6 +174,23 @@ export default function AdminMarketers() {
     },
   });
 
+  const deleteMarketerMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await supabase.from("businesses").update({ referred_by_marketer_id: null }).eq("referred_by_marketer_id", id);
+      await supabase.from("marketer_referrals").delete().eq("marketer_id", id);
+      const { error } = await supabase.from("marketers").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: t("admin.success"), description: t("marketer.deleted") });
+      queryClient.invalidateQueries({ queryKey: ["admin-marketers"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-marketer-referrals"] });
+    },
+    onError: (err: any) => {
+      toast({ title: t("admin.error"), description: err.message, variant: "destructive" });
+    },
+  });
+
   if (adminLoading) return <div className="container mx-auto p-6"><Skeleton className="h-96 w-full" /></div>;
   if (!isSystemAdmin) { navigate("/"); return null; }
 
@@ -218,6 +246,7 @@ export default function AdminMarketers() {
                     <TableHead>{t("marketer.referralCode")}</TableHead>
                     <TableHead>{t("marketer.referralCount")}</TableHead>
                     <TableHead>{t("common.status")}</TableHead>
+                    <TableHead className="text-right">{t("common.actions") || "Actions"}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -250,12 +279,42 @@ export default function AdminMarketers() {
                             {m.is_active ? t("common.active") : t("common.inactive")}
                           </Badge>
                         </TableCell>
+                        <TableCell className="text-right">
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>{t("marketer.delete") || "Delete Marketer"}</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  {t("marketer.deleteConfirm")}
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>{t("common.cancel") || "Cancel"}</AlertDialogCancel>
+                                <AlertDialogAction
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  onClick={() => deleteMarketerMutation.mutate(m.id)}
+                                >
+                                  {t("common.delete") || "Delete"}
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </TableCell>
                       </TableRow>
                     );
                   })}
                   {filteredMarketers.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                         {t("marketer.noMarketers")}
                       </TableCell>
                     </TableRow>

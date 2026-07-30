@@ -23,9 +23,20 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Tag, Copy, Loader2 } from "lucide-react";
+import { Plus, Tag, Copy, Loader2, Trash2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export function PromoCodeManagement() {
   const { t } = useLanguage();
@@ -90,6 +101,25 @@ export function PromoCodeManagement() {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await supabase.from("promo_code_uses").delete().eq("promo_code_id", id);
+      const { error } = await supabase.from("promo_codes").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-promo-codes"] });
+      toast({ title: t("admin.promoDeleted") });
+    },
+    onError: (err: any) => {
+      toast({
+        title: t("common.error"),
+        description: err.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const resetForm = () => {
     setNewCode("");
     setDescription("");
@@ -143,7 +173,8 @@ export function PromoCodeManagement() {
                   <TableHead>{t("admin.promoUses")}</TableHead>
                   <TableHead>{t("admin.status")}</TableHead>
                   <TableHead>{t("admin.promoExpires")}</TableHead>
-                  <TableHead></TableHead>
+                  <TableHead>{t("common.status")}</TableHead>
+                  <TableHead className="text-right">{t("common.actions") || "Actions"}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -190,6 +221,36 @@ export function PromoCodeManagement() {
                       <Badge variant={promo.is_active ? "default" : "secondary"}>
                         {promo.is_active ? t("admin.active") : t("admin.inactive")}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>{t("admin.deletePromo")}</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              {t("admin.confirmDeletePromo")}
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>{t("common.cancel") || "Cancel"}</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              onClick={() => deleteMutation.mutate(promo.id)}
+                            >
+                              {t("common.delete") || "Delete"}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </TableCell>
                   </TableRow>
                 ))}
