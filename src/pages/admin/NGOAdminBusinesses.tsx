@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAdminType } from '@/hooks/useAdminType'
 import { useNGOBusinessesPaginated } from '@/hooks/admin/useAdminNGOs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -18,10 +18,32 @@ const ITEMS_PER_PAGE = 10
 export default function NGOAdminBusinesses() {
   const { t } = useLanguage()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { adminType, ngoId, loading: adminLoading } = useAdminType()
-  const [searchQuery, setSearchQuery] = useState('')
-  const [typeFilter, setTypeFilter] = useState<string>('all')
-  const [currentPage, setCurrentPage] = useState(1)
+
+  const pageParam = searchParams.get("page")
+  const currentPage = pageParam ? Math.max(1, parseInt(pageParam, 10)) : 1
+  const searchQuery = searchParams.get("search") || ""
+  const typeFilter = searchParams.get("type") || "all"
+
+  const updateUrlParams = (updates: { page?: number; search?: string; type?: string }) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (updates.page !== undefined) {
+        if (updates.page <= 1) next.delete("page")
+        else next.set("page", String(updates.page))
+      }
+      if (updates.search !== undefined) {
+        if (!updates.search) next.delete("search")
+        else next.set("search", updates.search)
+      }
+      if (updates.type !== undefined) {
+        if (!updates.type || updates.type === "all") next.delete("type")
+        else next.set("type", updates.type)
+      }
+      return next
+    }, { replace: true })
+  }
   
   const isNGOAdmin = adminType === 'ngo_admin'
 
@@ -91,14 +113,14 @@ export default function NGOAdminBusinesses() {
                 <Input
                   placeholder={t("admin.searchBusinessPlaceholder")}
                   value={searchQuery}
-                  onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1) }}
+                  onChange={(e) => { updateUrlParams({ search: e.target.value, page: 1 }) }}
                   className="pl-10"
                 />
               </div>
             </div>
             <div className="w-48">
               <label className="text-sm font-medium mb-2 block">{t("common.type")}</label>
-              <Select value={typeFilter} onValueChange={(value) => { setTypeFilter(value); setCurrentPage(1) }}>
+              <Select value={typeFilter} onValueChange={(value) => { updateUrlParams({ type: value, page: 1 }) }}>
                 <SelectTrigger>
                   <SelectValue placeholder={t("admin.allTypes")} />
                 </SelectTrigger>
@@ -198,7 +220,7 @@ export default function NGOAdminBusinesses() {
                   <Pagination>
                     <PaginationContent>
                       <PaginationItem>
-                        <PaginationPrevious onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"} />
+                        <PaginationPrevious onClick={() => updateUrlParams({ page: Math.max(1, currentPage - 1) })} className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"} />
                       </PaginationItem>
                       <div className="hidden md:flex">
                         {getPageNumbers().map((page, index) =>
@@ -206,7 +228,7 @@ export default function NGOAdminBusinesses() {
                             <PaginationItem key={`ellipsis-${index}`}><PaginationEllipsis /></PaginationItem>
                           ) : (
                             <PaginationItem key={page}>
-                              <PaginationLink onClick={() => setCurrentPage(page)} isActive={currentPage === page} className="cursor-pointer">{page}</PaginationLink>
+                              <PaginationLink onClick={() => updateUrlParams({ page: Number(page) })} isActive={currentPage === page} className="cursor-pointer">{page}</PaginationLink>
                             </PaginationItem>
                           )
                         )}
@@ -215,7 +237,7 @@ export default function NGOAdminBusinesses() {
                         <span className="text-sm">{currentPage} {t("admin.of")} {totalPages}</span>
                       </PaginationItem>
                       <PaginationItem>
-                        <PaginationNext onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"} />
+                        <PaginationNext onClick={() => updateUrlParams({ page: Math.min(totalPages, currentPage + 1) })} className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"} />
                       </PaginationItem>
                     </PaginationContent>
                   </Pagination>

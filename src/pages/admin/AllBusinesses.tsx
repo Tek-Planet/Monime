@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,16 +23,46 @@ import { BusinessLocationsMap } from "@/components/maps/BusinessLocationsMap";
 import { AddressSearch } from "@/components/maps/AddressSearch";
 import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
+
 const ITEMS_PER_PAGE = 10;
+
 export default function AllBusinesses() {
   const { t } = useLanguage();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { adminType, loading: adminLoading } = useAdminType();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState<string>("all");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [viewMode, setViewMode] = useState<"list" | "map">("list");
+
+  const pageParam = searchParams.get("page");
+  const currentPage = pageParam ? Math.max(1, parseInt(pageParam, 10)) : 1;
+  const searchQuery = searchParams.get("search") || "";
+  const typeFilter = searchParams.get("type") || "all";
+  const viewMode = (searchParams.get("mode") as "list" | "map") || "list";
+
   const [searchedLocation, setSearchedLocation] = useState<{ lat: number; lng: number } | null>(null);
+
+  const updateUrlParams = (updates: { page?: number; search?: string; type?: string; mode?: string }) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (updates.page !== undefined) {
+        if (updates.page <= 1) next.delete("page");
+        else next.set("page", String(updates.page));
+      }
+      if (updates.search !== undefined) {
+        if (!updates.search) next.delete("search");
+        else next.set("search", updates.search);
+      }
+      if (updates.type !== undefined) {
+        if (!updates.type || updates.type === "all") next.delete("type");
+        else next.set("type", updates.type);
+      }
+      if (updates.mode !== undefined) {
+        if (!updates.mode || updates.mode === "list") next.delete("mode");
+        else next.set("mode", updates.mode);
+      }
+      return next;
+    }, { replace: true });
+  };
+
   const isSystemAdmin = adminType === "system_admin";
   const { data, isLoading } = useAdminBusinesses({
     search: searchQuery,
@@ -40,17 +70,21 @@ export default function AllBusinesses() {
     page: currentPage,
     pageSize: ITEMS_PER_PAGE,
   });
+
   const businesses = data?.businesses || [];
   const totalCount = data?.totalCount || 0;
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
+
   useEffect(() => {
     if (!adminLoading && !isSystemAdmin) {
       navigate("/admin");
     }
   }, [isSystemAdmin, adminLoading, navigate]);
+
   const handleViewDetails = (businessId: string) => {
     navigate(`/admin/businesses/${businessId}`);
   };
+
   const getPageNumbers = () => {
     const pages: (number | "ellipsis")[] = [];
     if (totalPages <= 5) {
@@ -66,6 +100,7 @@ export default function AllBusinesses() {
     }
     return pages;
   };
+
   if (adminLoading) {
     return (
       <div className="container mx-auto p-6 space-y-6">
@@ -74,7 +109,9 @@ export default function AllBusinesses() {
       </div>
     );
   }
+
   if (!isSystemAdmin) return null;
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center gap-3">
@@ -82,7 +119,7 @@ export default function AllBusinesses() {
         <h1 className="text-2xl md:text-3xl font-bold">{t("admin.allBusinesses")}</h1>
       </div>
 
-      <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "list" | "map")} className="space-y-4">
+      <Tabs value={viewMode} onValueChange={(v) => updateUrlParams({ mode: v })} className="space-y-4">
         <div className="flex items-center justify-between">
           <TabsList>
             <TabsTrigger value="list" className="flex items-center gap-2">
@@ -102,7 +139,7 @@ export default function AllBusinesses() {
               <CardTitle>{t("admin.searchLocation")}</CardTitle>
               <div className="mt-4">
                 <AddressSearch
-                  onLocationSelect={(lat, lng, displayName) => {
+                  onLocationSelect={(lat, lng) => {
                     setSearchedLocation({ lat, lng });
                   }}
                 />
@@ -134,8 +171,7 @@ export default function AllBusinesses() {
                       placeholder={t("admin.searchBusinessPlaceholder")}
                       value={searchQuery}
                       onChange={(e) => {
-                        setSearchQuery(e.target.value);
-                        setCurrentPage(1);
+                        updateUrlParams({ search: e.target.value, page: 1 });
                       }}
                       className="pl-10"
                     />
@@ -143,7 +179,12 @@ export default function AllBusinesses() {
                 </div>
                 <div className="w-full sm:w-48">
                   <label className="text-sm font-medium mb-2 block">{t("admin.typeLabel")}</label>
-                  <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v); setCurrentPage(1); }}>
+                  <Select
+                    value={typeFilter}
+                    onValueChange={(v) => {
+                      updateUrlParams({ type: v, page: 1 });
+                    }}
+                  >
                     <SelectTrigger><SelectValue placeholder={t("admin.allTypes")} /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">{t("admin.allTypes")}</SelectItem>
@@ -247,7 +288,7 @@ export default function AllBusinesses() {
                     <PaginationContent>
                       <PaginationItem>
                         <PaginationPrevious
-                          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                          onClick={() => updateUrlParams({ page: Math.max(1, currentPage - 1) })}
                           className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
                         />
                       </PaginationItem>
@@ -260,7 +301,7 @@ export default function AllBusinesses() {
                           ) : (
                             <PaginationItem key={page}>
                               <PaginationLink
-                                onClick={() => setCurrentPage(page)}
+                                onClick={() => updateUrlParams({ page: Number(page) })}
                                 isActive={currentPage === page}
                                 className="cursor-pointer"
                               >
@@ -277,7 +318,7 @@ export default function AllBusinesses() {
                       </PaginationItem>
                       <PaginationItem>
                         <PaginationNext
-                          onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                          onClick={() => updateUrlParams({ page: Math.min(totalPages, currentPage + 1) })}
                           className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
                         />
                       </PaginationItem>
