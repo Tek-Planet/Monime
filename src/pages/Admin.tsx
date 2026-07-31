@@ -45,13 +45,17 @@ export default function Admin() {
     icon: Building2,
     path: "/admin/ngos",
     color: "text-green-500"
-  }, {
+  },
+  /* Subscription model currently disabled — uncomment below if needed in future
+  {
     title: t("adminSub.title"),
     description: t("adminSub.description"),
     icon: CreditCard,
     path: "/admin/subscriptions",
     color: "text-emerald-500"
-  }, {
+  },
+  */
+  {
     title: t("marketer.title"),
     description: t("marketer.description"),
     icon: Megaphone,
@@ -100,6 +104,7 @@ export default function Admin() {
         </div>
       </div>
 
-      {isSystemAdmin && <PromoCodeManagement />}
+      {/* Subscription model currently disabled — promo code management commented out for future use */}
+      {/* {isSystemAdmin && <PromoCodeManagement />} */}
     </div>;
 }

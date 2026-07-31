@@ -88,14 +88,17 @@ async function fetchUserProfileData(userId: string): Promise<UserProfileData> {
   }
 
   // Check if user is a member of an organization
-  const { data: memberData, error: memberError } = await supabase
+  const { data: memberDataList, error: memberError } = await supabase
     .from("organization_members")
     .select("business_id, businesses(*)")
     .eq("user_id", userId)
     .eq("is_active", true)
-    .maybeSingle();
+    .order("created_at", { ascending: false })
+    .limit(1);
 
-  if (memberError && memberError.code !== "PGRST116") {
+  const memberData = memberDataList?.[0];
+
+  if (memberError) {
     console.error("Error fetching organization membership:", memberError);
   }
 

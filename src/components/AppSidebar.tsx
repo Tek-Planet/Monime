@@ -228,6 +228,7 @@ export function AppSidebar() {
                 </SidebarMenuItem>
                 {adminType === 'system_admin' && (
                   <>
+                    {/* Subscription model currently disabled — uncomment below if needed in future
                     <SidebarMenuItem>
                       <SidebarMenuButton asChild isActive={isActive('/admin/subscriptions')}>
                         <NavLink
@@ -240,6 +241,7 @@ export function AppSidebar() {
                         </NavLink>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
+                    */}
                     <SidebarMenuItem>
                       <SidebarMenuButton asChild isActive={isActive('/admin/marketers')}>
                         <NavLink

@@ -85,6 +85,11 @@ export function useSubscription() {
   });
 
   const hasPremiumAccess = (): boolean => {
+    // SUBSCRIPTION MODEL DISABLED: App is free for all users.
+    // To restore subscription gating in the future, uncomment the logic below:
+    return true;
+
+    /*
     if (isAdmin) return true;
     if (!subscription) return false;
     
@@ -95,13 +100,11 @@ export function useSubscription() {
       return new Date(subscription.current_period_end) > now;
     }
     
-    // Free trial removed — access requires an active paid subscription or promo code.
-
-
     // Promo code access
     if (promoAccess) return true;
 
     return false;
+    */
   };
 
   const isPremiumPage = (page: string): boolean => {

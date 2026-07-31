@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
 import { toast } from 'sonner'
-import { getOrCreateBusinessId } from '@/lib/getOrCreateBusinessId'
+import { getOrCreateBusinessId, getBusinessId } from '@/lib/getOrCreateBusinessId'
 import { useEffect } from 'react'
 import { useBranchContext } from '@/contexts/BranchContext'
 import { fetchAllPages } from '@/lib/fetchAllPages'
@@ -50,10 +50,14 @@ export function useCustomers(businessId?: string) {
     queryFn: async (): Promise<Customer[]> => {
       if (!user) return []
 
+      let targetBusinessId = businessId
+      if (!targetBusinessId) {
+        targetBusinessId = (await getBusinessId(user.id)) || undefined
+      }
+      if (!targetBusinessId) return []
+
       const canViewAll = isBusinessOwner || isHqMember || !!businessId;
       
-      // This is a hard guard. If branch context is resolved and a non-privileged user
-      // does not have a branch selected, we must prevent fetching aggregated data.
       if (branchResolved && !canViewAll && !selectedBranchId) {
           console.warn("Data fetch blocked: A non-privileged user must have a branch selected.");
           return [];
@@ -63,13 +67,10 @@ export function useCustomers(businessId?: string) {
         let query = supabase
           .from('customers')
           .select('*')
-
-        if (businessId) {
-          query = query.eq('business_id', businessId)
-        }
+          .eq('business_id', targetBusinessId)
 
         if (selectedBranchId) {
-          query = query.eq('branch_id', selectedBranchId)
+          query = query.or(`branch_id.eq.${selectedBranchId},branch_id.is.null`)
         }
 
         return query.order('name', { ascending: true })
@@ -77,9 +78,8 @@ export function useCustomers(businessId?: string) {
 
       return await fetchAllPages<Customer>(buildQuery)
     },
-    // The query is enabled only when the user is loaded and branch access is resolved.
     enabled: !!user && branchResolved,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 30 * 1000,
     gcTime: 10 * 60 * 1000,
   })
 

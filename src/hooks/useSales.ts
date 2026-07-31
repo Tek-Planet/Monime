@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/integrations/supabase/client'
 import { useToast } from '@/hooks/use-toast'
-import { getOrCreateBusinessId } from '@/lib/getOrCreateBusinessId'
+import { getOrCreateBusinessId, getBusinessId } from '@/lib/getOrCreateBusinessId'
 import { useEffect } from 'react'
 import { useBranchContext } from '@/contexts/BranchContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -49,7 +49,13 @@ type MutationContext = {
   previousData: Sale[] | undefined
 }
 
-const fetchSalesData = async (businessId?: string, branchId?: string | null): Promise<Sale[]> => {
+const fetchSalesData = async (businessId?: string, branchId?: string | null, userId?: string): Promise<Sale[]> => {
+  let targetBusinessId = businessId
+  if (!targetBusinessId && userId) {
+    targetBusinessId = (await getBusinessId(userId)) || undefined
+  }
+  if (!targetBusinessId) return []
+
   const buildQuery = () => {
     let query = supabase
       .from('sales')
@@ -57,13 +63,10 @@ const fetchSalesData = async (businessId?: string, branchId?: string | null): Pr
         *,
         customer:customers(id, name, email, phone)
       `)
-
-    if (businessId) {
-      query = query.eq('business_id', businessId)
-    }
+      .eq('business_id', targetBusinessId)
 
     if (branchId) {
-      query = query.eq('branch_id', branchId)
+      query = query.or(`branch_id.eq.${branchId},branch_id.is.null`)
     }
 
     return query.order('created_at', { ascending: false })
@@ -81,9 +84,9 @@ export function useSales(businessId?: string) {
 
   const { data: sales = [], isLoading: loading, error } = useQuery({
     queryKey: QUERY_KEY,
-    queryFn: () => fetchSalesData(businessId, selectedBranchId),
+    queryFn: () => fetchSalesData(businessId, selectedBranchId, user?.id),
     enabled: !!user && !authLoading && branchResolved,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 30 * 1000,
     gcTime: 10 * 60 * 1000,
   })
 

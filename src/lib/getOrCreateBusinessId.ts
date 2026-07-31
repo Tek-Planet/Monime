@@ -21,14 +21,17 @@ export async function getOrCreateBusinessId(userId: string): Promise<string | nu
   }
 
   // 2. Check if user is a team member
-  const { data: membership, error: memberError } = await supabase
+  const { data: memberships, error: memberError } = await supabase
     .from('organization_members')
     .select('business_id')
     .eq('user_id', userId)
     .eq('is_active', true)
-    .maybeSingle()
+    .order('created_at', { ascending: false })
+    .limit(1)
 
-  if (memberError && memberError.code !== 'PGRST116') {
+  const membership = memberships?.[0]
+
+  if (memberError) {
     console.error('Error fetching membership:', memberError)
   }
 
@@ -72,12 +75,13 @@ export async function getBusinessId(userId: string): Promise<string | null> {
   }
 
   // 2. Check if user is a team member
-  const { data: membership } = await supabase
+  const { data: memberships } = await supabase
     .from('organization_members')
     .select('business_id')
     .eq('user_id', userId)
     .eq('is_active', true)
-    .maybeSingle()
+    .order('created_at', { ascending: false })
+    .limit(1)
 
-  return membership?.business_id || null
+  return memberships?.[0]?.business_id || null
 }
