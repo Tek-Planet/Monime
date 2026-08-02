@@ -2,10 +2,11 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Receipt, Share, Download } from "lucide-react";
 import { ShareButton } from "@/components/ShareButton";
-import jsPDF from "jspdf";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import { createModernPDFDocument, renderModernTable, addTotalsAndNotes, addPDFPageFooters } from "@/lib/pdfTemplate";
 
 interface ReceiptItem {
   id: string;
@@ -24,6 +25,7 @@ interface GenerateReceiptModalProps {
 
 export function GenerateReceiptModal({ sale, invoice, open, onOpenChange }: GenerateReceiptModalProps) {
   const { t } = useLanguage();
+  const { business, profilePhoto } = useUserProfile();
   const data = sale || invoice;
   const isInvoice = !!invoice;
 
@@ -103,57 +105,68 @@ ${t("receipt.generatedVia")}
 `.trim();
   };
 
-  const generateReceiptPDF = () => {
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
+  const generateReceiptPDF = async () => {
+    const currency = business?.currency || "SLL";
+    const logoUrl = profilePhoto?.url || null;
+    const receiptNum = data.invoice_number ? `INV-${data.invoice_number}` : `REC-${data.id?.slice(0, 8) || "001"}`;
 
-    // Header
-    doc.setFontSize(20);
-    doc.text(isInvoice ? t("receipt.invoice").toUpperCase() : t("receipt.receipt").toUpperCase(), pageWidth / 2, 20, { align: "center" });
+    const { doc, startY } = await createModernPDFDocument({
+      docType: "receipt",
+      title: isInvoice ? (t("receipt.invoice") || "INVOICE").toUpperCase() : (t("receipt.receipt") || "OFFICIAL RECEIPT").toUpperCase(),
+      docNumber: receiptNum,
+      date: getDate(),
+      status: "paid",
+      paymentMethod: getPaymentInfo(),
+      business: {
+        business_name: business?.business_name || t("business.defaultname"),
+        address: business?.address || null,
+        phone: business?.phone || null,
+        email: business?.email || null,
+        currency: currency,
+        logoUrl: logoUrl,
+      },
+      customer: {
+        label: "CUSTOMER / RECEIVED FROM",
+        name: getCustomerName(),
+      },
+      notes: data.notes || undefined,
+    });
 
-    // Content
-    doc.setFontSize(12);
-    let yPos = 40;
-    
-    if (isInvoice && data.invoice_number) {
-      doc.text(`${t("invoice.invoiceNumber")}: ${data.invoice_number}`, 20, yPos);
-      yPos += 10;
-    }
-    
-    doc.text(`${t("expense.date")}: ${getDate()}`, 20, yPos);
-    yPos += 10;
-    doc.text(`${t("sale.customer")}: ${getCustomerName()}`, 20, yPos);
-    yPos += 10;
-    doc.text(`${isInvoice ? t("invoices.status") : t("sale.paymentMethod")}: ${getPaymentInfo()}`, 20, yPos);
-    yPos += 15;
+    const tableBody = items.map((item, idx) => [
+      `${idx + 1}`,
+      item.product_name,
+      `${item.quantity}`,
+      `${currency} ${item.unit_price.toLocaleString()}`,
+      `${currency} ${item.total_price.toLocaleString()}`,
+    ]);
 
-    // Items section
-    if (items.length > 0) {
-      doc.setFontSize(12);
-      doc.text(`${t("invoice.invoiceItems")}:`, 20, yPos);
-      yPos += 8;
+    renderModernTable(doc, {
+      startY: startY,
+      head: [["#", t("reports.pdf.product") || "Item", t("invoice.quantity") || "Qty", t("reports.pdf.unitPrice") || "Unit Price", t("invoice.total") || "Total"]],
+      body: tableBody.length > 0 ? tableBody : [["1", "General Purchase", "1", `${currency} ${getTotalAmount().toLocaleString()}`, `${currency} ${getTotalAmount().toLocaleString()}`]],
+      columnStyles: {
+        0: { cellWidth: 12, halign: "center" },
+        1: { cellWidth: "auto" },
+        2: { cellWidth: 20, halign: "center" },
+        3: { cellWidth: 38, halign: "right" },
+        4: { cellWidth: 42, halign: "right" },
+      },
+    });
 
-      doc.setFontSize(10);
-      items.forEach((item) => {
-        doc.text(`${item.product_name} x${item.quantity} @ Le ${item.unit_price.toLocaleString()}`, 25, yPos);
-        doc.text(`Le ${item.total_price.toLocaleString()}`, pageWidth - 40, yPos);
-        yPos += 7;
-      });
-      yPos += 8;
-    }
+    const finalY = (doc as any).lastAutoTable?.finalY || startY + 20;
 
-    doc.setFontSize(14);
-    doc.text(`${t("invoice.total").toUpperCase()}: Le ${getTotalAmount().toFixed(2)}`, 20, yPos);
-    yPos += 15;
+    addTotalsAndNotes(doc, {
+      startY: finalY,
+      notes: data.notes || undefined,
+      totals: [
+        { label: "Total Amount:", value: `${currency} ${getTotalAmount().toLocaleString()}`, isHighlight: true },
+      ],
+    });
 
-    if (data.notes) {
-      doc.setFontSize(10);
-      doc.text(`${t("invoice.notes")}: ${data.notes}`, 20, yPos);
-    }
-
-    yPos += 20;
-    doc.setFontSize(10);
-    doc.text(t("receipt.thankYou"), pageWidth / 2, yPos, { align: "center" });
+    addPDFPageFooters(doc, {
+      title: "RECEIPT",
+      business: { business_name: business?.business_name },
+    });
 
     return doc;
   };

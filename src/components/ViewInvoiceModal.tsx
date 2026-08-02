@@ -5,10 +5,10 @@ import { Separator } from "@/components/ui/separator";
 import { FileText, Calendar, User, MapPin, Phone, Mail } from "lucide-react";
 import { Invoice } from "@/hooks/useInvoices";
 import { ShareButton } from "@/components/ShareButton";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import { format } from "date-fns";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import { createModernPDFDocument, renderModernTable, addTotalsAndNotes, addPDFPageFooters } from "@/lib/pdfTemplate";
 
 interface ViewInvoiceModalProps {
   invoice: Invoice | null;
@@ -18,6 +18,7 @@ interface ViewInvoiceModalProps {
 
 export function ViewInvoiceModal({ invoice, open, onOpenChange }: ViewInvoiceModalProps) {
   const { t } = useLanguage();
+  const { business, profilePhoto } = useUserProfile();
   
   if (!invoice) return null;
 
@@ -38,42 +39,76 @@ export function ViewInvoiceModal({ invoice, open, onOpenChange }: ViewInvoiceMod
     }
   };
 
-  const generateInvoicePDF = () => {
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
+  const generateInvoicePDF = async () => {
+    const currency = business?.currency || "SLL";
+    const logoUrl = profilePhoto?.url || null;
 
-    doc.setFontSize(20);
-    doc.text(t("receipt.invoice"), pageWidth / 2, 20, { align: "center" });
+    const { doc, startY } = await createModernPDFDocument({
+      docType: "invoice",
+      title: t("receipt.invoice") || "INVOICE",
+      docNumber: `INV-${invoice.invoice_number}`,
+      date: format(new Date(invoice.invoice_date), "PPP"),
+      dueDate: invoice.due_date ? format(new Date(invoice.due_date), "PPP") : undefined,
+      status: invoice.status,
+      business: {
+        business_name: business?.business_name || t("business.defaultname"),
+        address: business?.address || null,
+        phone: business?.phone || null,
+        email: business?.email || null,
+        currency: currency,
+        logoUrl: logoUrl,
+      },
+      customer: invoice.customer ? {
+        label: (t("invoice.customerInfo") || "BILL TO").toUpperCase(),
+        name: invoice.customer.name,
+        phone: invoice.customer.phone || null,
+        email: invoice.customer.email || null,
+        address: invoice.customer.address || null,
+      } : undefined,
+      notes: invoice.notes || undefined,
+    });
 
-    doc.setFontSize(12);
-    doc.text(`${t("invoice.invoiceNumber")} ${invoice.invoice_number}`, 20, 40);
-    doc.text(`${t("invoice.invoiceDate")}: ${format(new Date(invoice.invoice_date), "PPP")}`, 20, 50);
-    if (invoice.due_date) {
-      doc.text(`${t("invoice.dueDate")}: ${format(new Date(invoice.due_date), "PPP")}`, 20, 60);
-    }
+    // Render Invoice Items Table
+    const tableBody = (invoice.invoice_items || []).map((item, idx) => [
+      `${idx + 1}`,
+      item.product_name,
+      `${item.quantity}`,
+      `${currency} ${item.unit_price.toLocaleString()}`,
+      `${currency} ${item.total_price.toLocaleString()}`,
+    ]);
 
-    doc.setFontSize(10);
-    doc.text(`${t("sale.customer")}: ${invoice.customer?.name || "N/A"}`, 20, 75);
-    if (invoice.customer?.email) {
-      doc.text(`${t("customer.email")}: ${invoice.customer.email}`, 20, 82);
-    }
-    if (invoice.customer?.phone) {
-      doc.text(`${t("customer.phone")}: ${invoice.customer.phone}`, 20, 89);
-    }
+    renderModernTable(doc, {
+      startY: startY,
+      head: [["#", t("reports.pdf.product") || "Item", t("invoice.quantity") || "Qty", t("reports.pdf.unitPrice") || "Unit Price", t("invoice.total") || "Total"]],
+      body: tableBody.length > 0 ? tableBody : [["1", "General Goods / Services", "1", `${currency} ${invoice.total_amount.toLocaleString()}`, `${currency} ${invoice.total_amount.toLocaleString()}`]],
+      columnStyles: {
+        0: { cellWidth: 12, halign: "center" },
+        1: { cellWidth: "auto" },
+        2: { cellWidth: 20, halign: "center" },
+        3: { cellWidth: 38, halign: "right" },
+        4: { cellWidth: 42, halign: "right" },
+      },
+    });
 
-    const startY = invoice.customer?.phone ? 100 : invoice.customer?.email ? 93 : 86;
+    const finalY = (doc as any).lastAutoTable?.finalY || startY + 20;
+    const balanceDue = invoice.total_amount - (invoice.paid_amount || 0);
 
-    doc.setFontSize(14);
-    doc.text(`${t("invoice.total")}: Le ${invoice.total_amount.toLocaleString()}`, 20, startY + 10);
-    doc.text(`${t("invoice.paidAmount")}: Le ${invoice.paid_amount.toLocaleString()}`, 20, startY + 20);
-    doc.text(`${t("invoices.status")}: ${invoice.status.toUpperCase()}`, 20, startY + 30);
+    addTotalsAndNotes(doc, {
+      startY: finalY,
+      notes: invoice.notes || undefined,
+      totals: [
+        { label: "Subtotal:", value: `${currency} ${(invoice.subtotal || invoice.total_amount).toLocaleString()}` },
+        { label: "Tax Amount:", value: `${currency} ${(invoice.tax_amount || 0).toLocaleString()}` },
+        { label: "Amount Paid:", value: `${currency} ${(invoice.paid_amount || 0).toLocaleString()}` },
+        { label: "Balance Due:", value: `${currency} ${balanceDue.toLocaleString()}`, isBold: true },
+        { label: "Total Amount:", value: `${currency} ${invoice.total_amount.toLocaleString()}`, isHighlight: true },
+      ],
+    });
 
-    if (invoice.notes) {
-      doc.setFontSize(10);
-      doc.text(`${t("invoice.notes")}:`, 20, startY + 45);
-      const splitNotes = doc.splitTextToSize(invoice.notes, pageWidth - 40);
-      doc.text(splitNotes, 20, startY + 52);
-    }
+    addPDFPageFooters(doc, {
+      title: "INVOICE",
+      business: { business_name: business?.business_name },
+    });
 
     return doc;
   };

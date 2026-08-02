@@ -4,11 +4,12 @@ import { Badge } from "@/components/ui/badge";
 import { Eye, Calendar, DollarSign, User, CreditCard, FileText, Package } from "lucide-react";
 import { Sale } from "@/hooks/useSales";
 import { ShareButton } from "@/components/ShareButton";
-import jsPDF from "jspdf";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import { createModernPDFDocument, renderModernTable, addTotalsAndNotes, addPDFPageFooters } from "@/lib/pdfTemplate";
 
 interface SaleItem {
   id: string;
@@ -24,6 +25,7 @@ interface ViewSaleModalProps {
 
 export function ViewSaleModal({ sale }: ViewSaleModalProps) {
   const { t } = useLanguage();
+  const { business, profilePhoto } = useUserProfile();
   
   const { data: saleItems = [] } = useQuery({
     queryKey: ['sale-items', sale.id],
@@ -67,26 +69,69 @@ export function ViewSaleModal({ sale }: ViewSaleModalProps) {
     }
   };
 
-  const generateSalePDF = () => {
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
+  const generateSalePDF = async () => {
+    const currency = business?.currency || "SLL";
+    const logoUrl = profilePhoto?.url || null;
 
-    doc.setFontSize(20);
-    doc.text(t("receipt.saleReceipt"), pageWidth / 2, 20, { align: "center" });
+    const { doc, startY } = await createModernPDFDocument({
+      docType: "sale",
+      title: t("receipt.saleReceipt") || "SALE RECEIPT",
+      docNumber: `SALE-${sale.id.slice(0, 8)}`,
+      date: format(new Date(sale.sale_date), "PPP"),
+      status: "completed",
+      paymentMethod: getPaymentMethodLabel(sale.payment_method),
+      business: {
+        business_name: business?.business_name || t("business.defaultname"),
+        address: business?.address || null,
+        phone: business?.phone || null,
+        email: business?.email || null,
+        currency: currency,
+        logoUrl: logoUrl,
+      },
+      customer: {
+        label: "CUSTOMER",
+        name: sale.customer?.name || t("sale.walkInCustomer"),
+        phone: sale.customer?.phone || null,
+        email: sale.customer?.email || null,
+      },
+      notes: sale.notes || undefined,
+    });
 
-    doc.setFontSize(10);
-    doc.text(`${t("expense.date")}: ${format(new Date(sale.sale_date), "PPP")}`, 20, 40);
-    doc.text(`${t("sale.customer")}: ${sale.customer?.name || t("sale.walkInCustomer")}`, 20, 50);
-    doc.text(`${t("sale.paymentMethod")}: ${getPaymentMethodLabel(sale.payment_method)}`, 20, 60);
+    const tableBody = (saleItems || []).map((item, idx) => [
+      `${idx + 1}`,
+      item.product_name,
+      `${item.quantity}`,
+      `${currency} ${item.unit_price.toLocaleString()}`,
+      `${currency} ${item.total_price.toLocaleString()}`,
+    ]);
 
-    doc.setFontSize(14);
-    doc.text(`${t("invoice.totalAmount")}: Le ${sale.total_amount.toLocaleString()}`, 20, 80);
+    renderModernTable(doc, {
+      startY: startY,
+      head: [["#", t("reports.pdf.product") || "Item", t("invoice.quantity") || "Qty", t("reports.pdf.unitPrice") || "Unit Price", t("invoice.total") || "Total"]],
+      body: tableBody.length > 0 ? tableBody : [["1", "General Sale", "1", `${currency} ${sale.total_amount.toLocaleString()}`, `${currency} ${sale.total_amount.toLocaleString()}`]],
+      columnStyles: {
+        0: { cellWidth: 12, halign: "center" },
+        1: { cellWidth: "auto" },
+        2: { cellWidth: 20, halign: "center" },
+        3: { cellWidth: 38, halign: "right" },
+        4: { cellWidth: 42, halign: "right" },
+      },
+    });
 
-    if (sale.notes) {
-      doc.setFontSize(10);
-      doc.text(`${t("invoice.notes")}:`, 20, 100);
-      doc.text(sale.notes, 20, 110);
-    }
+    const finalY = (doc as any).lastAutoTable?.finalY || startY + 20;
+
+    addTotalsAndNotes(doc, {
+      startY: finalY,
+      notes: sale.notes || undefined,
+      totals: [
+        { label: "Total Amount:", value: `${currency} ${sale.total_amount.toLocaleString()}`, isHighlight: true },
+      ],
+    });
+
+    addPDFPageFooters(doc, {
+      title: "SALE RECEIPT",
+      business: { business_name: business?.business_name },
+    });
 
     return doc;
   };

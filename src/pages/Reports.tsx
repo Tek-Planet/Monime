@@ -45,11 +45,11 @@ import autoTable from "jspdf-autotable";
 import { ShareButton } from "@/components/ShareButton";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useLanguage } from "@/contexts/LanguageContext";
-import mibuksLogo from "@/assets/test.png";
+import { createModernPDFDocument, renderModernTable, addPDFPageFooters } from "@/lib/pdfTemplate";
 
 const Reports = () => {
   const { t, locale } = useLanguage();
-  const { business, loading: businessLoading } = useUserProfile();
+  const { business, loading: businessLoading, profilePhoto } = useUserProfile();
   const businessId = business?.id;
   const { sales, loading: salesLoading } = useSales(businessId);
   const { invoices, loading: invoicesLoading } = useInvoices(businessId);
@@ -365,64 +365,66 @@ const Reports = () => {
     return 50 + metaLines.length * 7;
   };
 
-const generateSalesReportPDF = () => {
-  const doc = new jsPDF();
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
+  const generateSalesReportPDF = async () => {
+    const currency = businessInfo?.currency || "SLL";
+    const logoUrl = profilePhoto?.url || null;
 
-  // First Page - Branded Cover
-  // Add Logo (centered)
-  try {
-    doc.addImage(testLogo, 'PNG', pageWidth / 2 - 40, 30, 80, 40); // Adjust size as needed
-  } catch (e) {
-    console.log("Logo loading failed");
-  }
+    const fromDateStr = format(dateRange?.from || subMonths(new Date(), 6), "PPP");
+    const toDateStr = format(dateRange?.to || new Date(), "PPP");
 
-  // Report Title
-  doc.setFontSize(22);
-  doc.text(t("reports.salesReport"), pageWidth / 2, 85, { align: "center" });
+    const { doc, startY } = await createModernPDFDocument({
+      docType: "report",
+      title: t("reports.salesReport") || "SALES REPORT",
+      subtitle: `${t("reports.period") || "Period"}: ${fromDateStr} - ${toDateStr}`,
+      date: format(new Date(), "PPP"),
+      business: {
+        business_name: business?.business_name || businessInfo?.business_name || t("business.defaultname"),
+        address: business?.address || null,
+        phone: business?.phone || null,
+        email: business?.email || null,
+        currency: currency,
+        logoUrl: logoUrl,
+      },
+      summaryCards: [
+        { label: "TOTAL REVENUE", value: `${currency} ${reportData.summary.totalRevenue.toLocaleString()}` },
+        { label: "TOTAL ORDERS", value: `${reportData.summary.totalOrders}` },
+        { label: "AVG ORDER VALUE", value: `${currency} ${Math.round(reportData.summary.avgOrderValue).toLocaleString()}` },
+      ],
+    });
 
-  // Business Name
-  if (businessInfo?.business_name) {
-    doc.setFontSize(14);
-    doc.text(businessInfo.business_name, pageWidth / 2, 100, { align: "center" });
-  }
+    const tableData = reportData.filteredSales.map((sale, idx) => [
+      `${idx + 1}`,
+      format(new Date(sale.sale_date), "yyyy-MM-dd"),
+      sale.customer?.name || t("reports.walkInCustomer"),
+      sale.payment_method?.replace("_", " ").toUpperCase() || "CASH",
+      `${currency} ${sale.total_amount.toLocaleString()}`,
+      sale.notes || "-",
+    ]);
 
-  // Date and Period
-  doc.setFontSize(11);
-  doc.text(`${t("reports.generatedOn")}: ${format(new Date(), "yyyy-MM-dd HH:mm")}`, pageWidth / 2, 115, { align: "center" });
-  doc.text(
-    `${t("reports.period")}: ${format(dateRange?.from || subMonths(new Date(), 6), "yyyy-MM-dd")} to ${format(dateRange?.to || new Date(), "yyyy-MM-dd")}`,
-    pageWidth / 2,
-    125,
-    { align: "center" },
-  );
+    renderModernTable(doc, {
+      startY: startY,
+      head: [["#", t("reports.pdf.saleDate") || "Date", t("reports.pdf.customer") || "Customer", t("reports.pdf.paymentMethod") || "Payment Method", t("reports.pdf.totalAmount") || "Total Amount", t("reports.pdf.notes") || "Notes"]],
+      body: tableData.length > 0 ? tableData : [["-", "No sales found in this period", "-", "-", "-", "-"]],
+      columnStyles: {
+        0: { cellWidth: 10, halign: "center" },
+        1: { cellWidth: 28 },
+        2: { cellWidth: "auto" },
+        3: { cellWidth: 32 },
+        4: { cellWidth: 35, halign: "right" },
+        5: { cellWidth: 35 },
+      },
+    });
 
-  // Add a new page for the table
-  doc.addPage();
+    addPDFPageFooters(doc, {
+      title: "SALES REPORT",
+      business: { business_name: business?.business_name || businessInfo?.business_name },
+    });
 
-  // Table on second page
-  const tableData = reportData.filteredSales.map((sale) => [
-    format(new Date(sale.sale_date), "yyyy-MM-dd"),
-    sale.customer?.name || t("reports.walkInCustomer"),
-    sale.total_amount.toString(),
-    sale.payment_method,
-    sale.notes || "",
-  ]);
+    return doc;
+  };
 
-  autoTable(doc, {
-    head: [[t("reports.pdf.saleDate"), t("reports.pdf.customer"), t("reports.pdf.totalAmount"), t("reports.pdf.paymentMethod"), t("reports.pdf.notes")]],
-    body: tableData,
-    startY: 20,
-    theme: "grid",
-    headStyles: { fillColor: [59, 130, 246] },
-  });
-
-  return doc;
-};
-
-  const exportSalesReportPDF = () => {
-    const doc = generateSalesReportPDF();
+  const exportSalesReportPDF = async () => {
+    const doc = await generateSalesReportPDF();
     doc.save(`Sales-Report-${format(new Date(), "yyyy-MM-dd")}.pdf`);
     toast({
       title: "Export successful",
@@ -430,45 +432,70 @@ const generateSalesReportPDF = () => {
     });
   };
 
-  const generateInventoryReportPDF = () => {
-    const doc = new jsPDF();
-    const metaLines = [
-      `${t("reports.generatedOn")}: ${format(new Date(), "yyyy-MM-dd HH:mm")}`,
-      ...(businessInfo?.business_name ? [businessInfo.business_name] : []),
-    ];
-    const headerY = addReportHeaderImages(doc, t("reports.inventoryReport"), metaLines);
+  const generateInventoryReportPDF = async () => {
+    const currency = businessInfo?.currency || "SLL";
+    const logoUrl = profilePhoto?.url || null;
 
-    const tableData = inventory.map((item) => [
+    const totalStockValue = inventory.reduce((acc, item) => acc + (Number(item.unit_price) * item.stock_quantity), 0);
+    const lowStockCount = inventory.filter((i) => i.stock_quantity <= (i.min_stock_level || 5)).length;
+
+    const { doc, startY } = await createModernPDFDocument({
+      docType: "report",
+      title: t("reports.inventoryReport") || "INVENTORY REPORT",
+      subtitle: `Stock Status & Valuation Summary`,
+      date: format(new Date(), "PPP"),
+      business: {
+        business_name: business?.business_name || businessInfo?.business_name || t("business.defaultname"),
+        address: business?.address || null,
+        phone: business?.phone || null,
+        email: business?.email || null,
+        currency: currency,
+        logoUrl: logoUrl,
+      },
+      summaryCards: [
+        { label: "TOTAL PRODUCTS", value: `${inventory.length}` },
+        { label: "TOTAL STOCK VALUE", value: `${currency} ${totalStockValue.toLocaleString()}` },
+        { label: "LOW STOCK ITEMS", value: `${lowStockCount}` },
+      ],
+    });
+
+    const tableData = inventory.map((item, idx) => [
+      `${idx + 1}`,
       item.name,
       item.category || "Uncategorized",
-      item.sku || "",
-      item.stock_quantity.toString(),
-      item.unit_price.toString(),
-      (Number(item.unit_price) * item.stock_quantity).toFixed(2),
+      item.sku || "-",
+      `${item.stock_quantity}`,
+      `${currency} ${Number(item.unit_price).toLocaleString()}`,
+      `${currency} ${(Number(item.unit_price) * item.stock_quantity).toLocaleString()}`,
       item.is_active ? "Active" : "Inactive",
     ]);
 
-    autoTable(doc, {
-      head: [[
-        t("reports.pdf.product"), 
-        t("reports.pdf.category"), 
-        t("reports.pdf.sku"), 
-        t("reports.pdf.stock"), 
-        t("reports.pdf.unitPrice"), 
-        t("reports.pdf.totalValue"), 
-        t("reports.pdf.status")
-      ]],
-      body: tableData,
-      startY: headerY + 3,
-      theme: "grid",
-      headStyles: { fillColor: [59, 130, 246] },
+    renderModernTable(doc, {
+      startY: startY,
+      head: [["#", t("reports.pdf.product") || "Product", t("reports.pdf.category") || "Category", t("reports.pdf.sku") || "SKU", t("reports.pdf.stock") || "Stock", t("reports.pdf.unitPrice") || "Unit Price", t("reports.pdf.totalValue") || "Total Value", t("reports.pdf.status") || "Status"]],
+      body: tableData.length > 0 ? tableData : [["-", "No inventory items found", "-", "-", "-", "-", "-", "-"]],
+      columnStyles: {
+        0: { cellWidth: 10, halign: "center" },
+        1: { cellWidth: "auto" },
+        2: { cellWidth: 28 },
+        3: { cellWidth: 20 },
+        4: { cellWidth: 18, halign: "center" },
+        5: { cellWidth: 28, halign: "right" },
+        6: { cellWidth: 32, halign: "right" },
+        7: { cellWidth: 20, halign: "center" },
+      },
+    });
+
+    addPDFPageFooters(doc, {
+      title: "INVENTORY REPORT",
+      business: { business_name: business?.business_name || businessInfo?.business_name },
     });
 
     return doc;
   };
 
-  const exportInventoryReportPDF = () => {
-    const doc = generateInventoryReportPDF();
+  const exportInventoryReportPDF = async () => {
+    const doc = await generateInventoryReportPDF();
     doc.save(`Inventory-Report-${format(new Date(), "yyyy-MM-dd")}.pdf`);
     toast({
       title: "Export successful",
@@ -476,43 +503,68 @@ const generateSalesReportPDF = () => {
     });
   };
 
-  const generateCustomerReportPDF = () => {
-    const doc = new jsPDF();
-    const metaLines = [
-      `${t("reports.generatedOn")}: ${format(new Date(), "yyyy-MM-dd HH:mm")}`,
-      ...(businessInfo?.business_name ? [businessInfo.business_name] : []),
-    ];
-    const headerY = addReportHeaderImages(doc, t("reports.customerReport"), metaLines);
+  const generateCustomerReportPDF = async () => {
+    const currency = businessInfo?.currency || "SLL";
+    const logoUrl = profilePhoto?.url || null;
 
-    const tableData = customers.map((customer) => [
+    const totalBalance = customers.reduce((acc, c) => acc + (c.current_balance || 0), 0);
+    const totalCreditLimit = customers.reduce((acc, c) => acc + (c.credit_limit || 0), 0);
+
+    const { doc, startY } = await createModernPDFDocument({
+      docType: "report",
+      title: t("reports.customerReport") || "CUSTOMER REPORT",
+      subtitle: `Customer Directory & Account Balances`,
+      date: format(new Date(), "PPP"),
+      business: {
+        business_name: business?.business_name || businessInfo?.business_name || t("business.defaultname"),
+        address: business?.address || null,
+        phone: business?.phone || null,
+        email: business?.email || null,
+        currency: currency,
+        logoUrl: logoUrl,
+      },
+      summaryCards: [
+        { label: "TOTAL CUSTOMERS", value: `${customers.length}` },
+        { label: "TOTAL OUTSTANDING BALANCE", value: `${currency} ${totalBalance.toLocaleString()}` },
+        { label: "TOTAL CREDIT LIMIT", value: `${currency} ${totalCreditLimit.toLocaleString()}` },
+      ],
+    });
+
+    const tableData = customers.map((customer, idx) => [
+      `${idx + 1}`,
       customer.name,
-      customer.phone || "",
-      customer.email || "",
-      customer.business_type || "",
-      (customer.credit_limit || 0).toString(),
-      (customer.current_balance || 0).toString(),
+      customer.phone || "-",
+      customer.email || "-",
+      customer.business_type || "-",
+      `${currency} ${(customer.credit_limit || 0).toLocaleString()}`,
+      `${currency} ${(customer.current_balance || 0).toLocaleString()}`,
     ]);
 
-    autoTable(doc, {
-      head: [[
-        t("reports.pdf.name"), 
-        t("reports.pdf.phone"), 
-        t("reports.pdf.email"), 
-        t("reports.pdf.businessType"), 
-        t("reports.pdf.creditLimit"), 
-        t("reports.pdf.balance")
-      ]],
-      body: tableData,
-      startY: headerY + 3,
-      theme: "grid",
-      headStyles: { fillColor: [59, 130, 246] },
+    renderModernTable(doc, {
+      startY: startY,
+      head: [["#", t("reports.pdf.name") || "Name", t("reports.pdf.phone") || "Phone", t("reports.pdf.email") || "Email", t("reports.pdf.businessType") || "Business Type", t("reports.pdf.creditLimit") || "Credit Limit", t("reports.pdf.balance") || "Balance"]],
+      body: tableData.length > 0 ? tableData : [["-", "No customers registered", "-", "-", "-", "-", "-"]],
+      columnStyles: {
+        0: { cellWidth: 10, halign: "center" },
+        1: { cellWidth: "auto" },
+        2: { cellWidth: 28 },
+        3: { cellWidth: 35 },
+        4: { cellWidth: 28 },
+        5: { cellWidth: 28, halign: "right" },
+        6: { cellWidth: 28, halign: "right" },
+      },
+    });
+
+    addPDFPageFooters(doc, {
+      title: "CUSTOMER REPORT",
+      business: { business_name: business?.business_name || businessInfo?.business_name },
     });
 
     return doc;
   };
 
-  const exportCustomerReportPDF = () => {
-    const doc = generateCustomerReportPDF();
+  const exportCustomerReportPDF = async () => {
+    const doc = await generateCustomerReportPDF();
     doc.save(`Customer-Report-${format(new Date(), "yyyy-MM-dd")}.pdf`);
     toast({
       title: "Export successful",
@@ -520,37 +572,65 @@ const generateSalesReportPDF = () => {
     });
   };
 
-  const generateMonthlySummaryPDF = () => {
-    const doc = new jsPDF();
-    const metaLines = [
-      `${t("reports.generatedOn")}: ${format(new Date(), "yyyy-MM-dd HH:mm")}`,
-      ...(businessInfo?.business_name ? [businessInfo.business_name] : []),
-    ];
-    const headerY = addReportHeaderImages(doc, t("reports.monthlySummaryReport"), metaLines);
+  const generateMonthlySummaryPDF = async () => {
+    const currency = businessInfo?.currency || "SLL";
+    const logoUrl = profilePhoto?.url || null;
+
+    const fromDateStr = format(dateRange?.from || subMonths(new Date(), 6), "PPP");
+    const toDateStr = format(dateRange?.to || new Date(), "PPP");
+    const netProfit = reportData.summary.totalRevenue - reportData.summary.totalExpenses;
+
+    const { doc, startY } = await createModernPDFDocument({
+      docType: "report",
+      title: t("reports.monthlySummaryReport") || "MONTHLY FINANCIAL SUMMARY",
+      subtitle: `${t("reports.period") || "Period"}: ${fromDateStr} - ${toDateStr}`,
+      date: format(new Date(), "PPP"),
+      business: {
+        business_name: business?.business_name || businessInfo?.business_name || t("business.defaultname"),
+        address: business?.address || null,
+        phone: business?.phone || null,
+        email: business?.email || null,
+        currency: currency,
+        logoUrl: logoUrl,
+      },
+      summaryCards: [
+        { label: "TOTAL REVENUE", value: `${currency} ${reportData.summary.totalRevenue.toLocaleString()}` },
+        { label: "TOTAL EXPENSES", value: `${currency} ${reportData.summary.totalExpenses.toLocaleString()}` },
+        { label: "NET PROFIT", value: `${currency} ${netProfit.toLocaleString()}` },
+        { label: "TOTAL ORDERS", value: `${reportData.summary.totalOrders}` },
+      ],
+    });
 
     const tableData = [
-      [
-        `${format(dateRange?.from || subMonths(new Date(), 6), "yyyy-MM-dd")} to ${format(dateRange?.to || new Date(), "yyyy-MM-dd")}`,
-        reportData.summary.totalRevenue.toString(),
-        reportData.summary.totalOrders.toString(),
-        Math.round(reportData.summary.avgOrderValue).toString(),
-        reportData.summary.activeCustomers.toString(),
-      ],
+      ["1", "Total Revenue", `${currency} ${reportData.summary.totalRevenue.toLocaleString()}`, "Gross sales generated in period"],
+      ["2", "Total Expenses", `${currency} ${reportData.summary.totalExpenses.toLocaleString()}`, "Operating cost and supplier payouts"],
+      ["3", "Net Income / Profit", `${currency} ${netProfit.toLocaleString()}`, netProfit >= 0 ? "Profitable period" : "Operating deficit"],
+      ["4", "Active Customers", `${reportData.summary.activeCustomers}`, "Unique purchasing customers"],
+      ["5", "Average Order Value", `${currency} ${Math.round(reportData.summary.avgOrderValue).toLocaleString()}`, "Average revenue per order"],
     ];
 
-    autoTable(doc, {
-      head: [["Period", "Total Revenue", "Total Orders", "Avg Order Value", "Active Customers"]],
+    renderModernTable(doc, {
+      startY: startY,
+      head: [["#", "Financial Metric", "Amount / Count", "Notes & Status"]],
       body: tableData,
-      startY: headerY + 3,
-      theme: "grid",
-      headStyles: { fillColor: [59, 130, 246] },
+      columnStyles: {
+        0: { cellWidth: 12, halign: "center" },
+        1: { cellWidth: 50, fontStyle: "bold" },
+        2: { cellWidth: 45, halign: "right", fontStyle: "bold" },
+        3: { cellWidth: "auto" },
+      },
+    });
+
+    addPDFPageFooters(doc, {
+      title: "MONTHLY SUMMARY",
+      business: { business_name: business?.business_name || businessInfo?.business_name },
     });
 
     return doc;
   };
 
-  const exportMonthlySummaryPDF = () => {
-    const doc = generateMonthlySummaryPDF();
+  const exportMonthlySummaryPDF = async () => {
+    const doc = await generateMonthlySummaryPDF();
     doc.save(`Monthly-Summary-${format(new Date(), "yyyy-MM-dd")}.pdf`);
     toast({
       title: "Export successful",
@@ -611,39 +691,67 @@ const generateSalesReportPDF = () => {
     exportToCSV(summaryData, "Monthly-Summary");
   };
 
-  const generateExpenseReportPDF = () => {
-    const doc = new jsPDF();
-    const metaLines = [
-      `${t("reports.generatedOn")}: ${format(new Date(), "yyyy-MM-dd HH:mm")}`,
-      `${t("reports.period")}: ${format(dateRange?.from || subMonths(new Date(), 6), "yyyy-MM-dd")} ${t("pagination.to")} ${format(dateRange?.to || new Date(), "yyyy-MM-dd")}`,
-      ...(businessInfo?.business_name ? [businessInfo.business_name] : []),
-    ];
-    const headerY = addReportHeaderImages(doc, t("reports.expenseReport") || "Expense Report", metaLines);
+  const generateExpenseReportPDF = async () => {
+    const currency = businessInfo?.currency || "SLL";
+    const logoUrl = profilePhoto?.url || null;
 
-    const tableData = reportData.filteredExpenses.map((exp) => [
+    const fromDateStr = format(dateRange?.from || subMonths(new Date(), 6), "PPP");
+    const toDateStr = format(dateRange?.to || new Date(), "PPP");
+
+    const { doc, startY } = await createModernPDFDocument({
+      docType: "report",
+      title: t("reports.expenseReport") || "EXPENSE REPORT",
+      subtitle: `${t("reports.period") || "Period"}: ${fromDateStr} - ${toDateStr}`,
+      date: format(new Date(), "PPP"),
+      business: {
+        business_name: business?.business_name || businessInfo?.business_name || t("business.defaultname"),
+        address: business?.address || null,
+        phone: business?.phone || null,
+        email: business?.email || null,
+        currency: currency,
+        logoUrl: logoUrl,
+      },
+      summaryCards: [
+        { label: "TOTAL EXPENSES", value: `${currency} ${reportData.summary.totalExpenses.toLocaleString()}` },
+        { label: "TOTAL TRANSACTIONS", value: `${reportData.filteredExpenses.length}` },
+      ],
+    });
+
+    const tableData = reportData.filteredExpenses.map((exp, idx) => [
+      `${idx + 1}`,
       format(new Date(exp.expense_date), "yyyy-MM-dd"),
       exp.description,
       formatCategory(exp.category) || "Uncategorized",
       exp.supplier?.name || "-",
-      exp.payment_method || "cash",
-      Number(exp.amount).toLocaleString(),
+      exp.payment_method?.toUpperCase() || "CASH",
+      `${currency} ${Number(exp.amount).toLocaleString()}`,
     ]);
 
-    autoTable(doc, {
-      head: [["Date", "Description", "Category", "Supplier", "Payment", "Amount"]],
-      body: tableData,
-      startY: headerY + 3,
-      theme: "grid",
-      headStyles: { fillColor: [239, 68, 68] },
-      foot: [["", "", "", "", "Total", reportData.summary.totalExpenses.toLocaleString()]],
-      footStyles: { fillColor: [243, 244, 246], textColor: 0, fontStyle: "bold" },
+    renderModernTable(doc, {
+      startY: startY,
+      head: [["#", "Date", "Description", "Category", "Supplier", "Payment Method", "Amount"]],
+      body: tableData.length > 0 ? tableData : [["-", "No expenses recorded", "-", "-", "-", "-", "-"]],
+      columnStyles: {
+        0: { cellWidth: 10, halign: "center" },
+        1: { cellWidth: 25 },
+        2: { cellWidth: "auto" },
+        3: { cellWidth: 28 },
+        4: { cellWidth: 28 },
+        5: { cellWidth: 25 },
+        6: { cellWidth: 30, halign: "right" },
+      },
+    });
+
+    addPDFPageFooters(doc, {
+      title: "EXPENSE REPORT",
+      business: { business_name: business?.business_name || businessInfo?.business_name },
     });
 
     return doc;
   };
 
-  const exportExpenseReportPDF = () => {
-    const doc = generateExpenseReportPDF();
+  const exportExpenseReportPDF = async () => {
+    const doc = await generateExpenseReportPDF();
     doc.save(`Expense-Report-${format(new Date(), "yyyy-MM-dd")}.pdf`);
     toast({ title: "Export successful", description: t("reports.exportPdfSuccess") });
   };

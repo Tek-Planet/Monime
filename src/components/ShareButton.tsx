@@ -12,7 +12,7 @@ import autoTable from "jspdf-autotable";
 interface ShareButtonProps {
   documentType: "sale" | "invoice" | "report";
   documentData: any;
-  generatePDF: () => jsPDF;
+  generatePDF: () => jsPDF | Promise<jsPDF>;
   subject: string;
   fileName: string;
   whatsappMessage?: string;
@@ -37,7 +37,7 @@ export function ShareButton({
   const handleWhatsAppShare = async () => {
     try {
       // Generate PDF
-      const pdf = generatePDF();
+      const pdf = await generatePDF();
       const pdfBlob = pdf.output("blob");
       const file = new File([pdfBlob], fileName, { type: "application/pdf" });
 
@@ -105,7 +105,7 @@ export function ShareButton({
   setSending(true);
 
   try {
-    const pdf = generatePDF();
+    const pdf = await generatePDF();
     const pdfBase64 = pdf.output("datauristring").split(",")[1];
 
     console.log("Sending PDF, size:", pdfBase64.length, "chars");
