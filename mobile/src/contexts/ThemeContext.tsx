@@ -38,23 +38,23 @@ export interface ThemeColors {
 const lightColors: ThemeColors = {
   isDark: false,
   themeMode: 'light',
-  primary: '#6E56CF', // MiBuks Brand Purple
+  primary: '#6E56CF', // MiBuks Brand Purple hsl(249 77% 62%)
   primaryHover: '#5B45BD',
-  secondary: '#F59E0B', // MiBuks Brand Orange
-  fintechBlue: '#3B82F6',
-  prosperityGreen: '#10B981',
-  background: '#F8FAFC', // slate-50
+  secondary: '#F59E0B', // MiBuks Brand Orange hsl(35 91% 60%)
+  fintechBlue: '#2563EB',
+  prosperityGreen: '#059669', // Prosperity Green hsl(160 84% 39%)
+  background: '#F8FAFC', // slate-50 hsl(215 20% 98%)
   surface: '#FFFFFF',
   cardBg: '#FFFFFF',
-  cardBorder: '#E2E8F0', // slate-200
-  textPrimary: '#0F172A', // slate-900
-  textSecondary: '#475569', // slate-600
-  textMuted: '#64748B', // slate-500
+  cardBorder: '#E2E8F0', // slate-200 hsl(215 20% 91%)
+  textPrimary: '#334155', // slate-700 hsl(215 25% 27%)
+  textSecondary: '#64748B', // slate-500 hsl(215 16% 47%)
+  textMuted: '#94A3B8',
   inputBg: '#FFFFFF',
-  inputBorder: '#CBD5E1', // slate-300
-  inputText: '#0F172A',
+  inputBorder: '#E2E8F0',
+  inputText: '#334155',
   inputPlaceholder: '#94A3B8',
-  headerBg: '#6E56CF', // Primary Brand Purple Header
+  headerBg: '#6E56CF',
   headerText: '#FFFFFF',
   tabBarBg: '#FFFFFF',
   tabBarBorder: '#E2E8F0',
@@ -62,39 +62,39 @@ const lightColors: ThemeColors = {
   tabBarInactive: '#64748B',
   danger: '#EF4444',
   warning: '#F59E0B',
-  success: '#10B981',
-  info: '#3B82F6',
+  success: '#059669',
+  info: '#2563EB',
 };
 
 const darkColors: ThemeColors = {
   isDark: true,
   themeMode: 'dark',
-  primary: '#8B5CF6', // Lighter purple for dark contrast
+  primary: '#8B5CF6',
   primaryHover: '#7C3AED',
   secondary: '#F59E0B',
-  fintechBlue: '#60A5FA',
-  prosperityGreen: '#34D399',
-  background: '#0F172A', // slate-900
-  surface: '#1E293B', // slate-800
-  cardBg: '#1E293B', // slate-800
-  cardBorder: '#334155', // slate-700
-  textPrimary: '#F8FAFC', // slate-50
-  textSecondary: '#CBD5E1', // slate-300
-  textMuted: '#94A3B8', // slate-400
+  fintechBlue: '#3B82F6',
+  prosperityGreen: '#10B981',
+  background: '#1E293B', // slate-800 hsl(215 28% 17%)
+  surface: '#2B3544',
+  cardBg: '#2D3748', // slate-700 hsl(215 25% 20%)
+  cardBorder: '#334155',
+  textPrimary: '#F8FAFC', // slate-50 hsl(215 20% 98%)
+  textSecondary: '#94A3B8', // slate-400 hsl(215 13% 65%)
+  textMuted: '#64748B',
   inputBg: '#1E293B',
   inputBorder: '#334155',
   inputText: '#F8FAFC',
   inputPlaceholder: '#64748B',
-  headerBg: '#0F172A', // slate-900
+  headerBg: '#1E293B',
   headerText: '#F8FAFC',
-  tabBarBg: '#0F172A',
-  tabBarBorder: '#1E293B',
-  tabBarActive: '#A78BFA',
-  tabBarInactive: '#64748B',
-  danger: '#F87171',
-  warning: '#FBBF24',
-  success: '#34D399',
-  info: '#60A5FA',
+  tabBarBg: '#1E293B',
+  tabBarBorder: '#334155',
+  tabBarActive: '#8B5CF6',
+  tabBarInactive: '#94A3B8',
+  danger: '#EF4444',
+  warning: '#F59E0B',
+  success: '#10B981',
+  info: '#3B82F6',
 };
 
 interface ThemeContextType {

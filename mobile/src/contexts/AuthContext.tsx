@@ -40,18 +40,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchBusinessAndBranches = async (userId: string) => {
     try {
-      // Get business
-      const { data: bData, error: bError } = await supabase
+      let bus: Business | null = null;
+      // 1. Check if user owns a business (column in DB is owner_id)
+      const { data: bData } = await supabase
         .from('businesses')
         .select('*')
-        .eq('user_id', userId)
+        .eq('owner_id', userId)
         .order('created_at', { ascending: true })
         .limit(1);
 
       if (bData && bData.length > 0) {
-        const bus = bData[0] as Business;
-        setBusiness(bus);
+        bus = bData[0] as Business;
+      } else {
+        // 2. Check if user is an organization member
+        const { data: memberList } = await supabase
+          .from('organization_members')
+          .select('business_id, businesses(*)')
+          .eq('user_id', userId)
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
+          .limit(1);
 
+        if (memberList && memberList.length > 0 && (memberList[0] as any).businesses) {
+          bus = (memberList[0] as any).businesses as Business;
+        }
+      }
+
+      if (bus) {
+        setBusiness(bus);
         // Fetch branches
         const { data: branchData } = await supabase
           .from('branches')
@@ -63,23 +79,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setBranches(branchData as Branch[]);
           if (branchData.length > 0) {
             setSelectedBranch(branchData[0] as Branch);
+          } else {
+            setSelectedBranch(null);
           }
         }
       } else {
-        // Create default business if none exists
-        const { data: newB } = await supabase
+        // 3. Create default business if none exists
+        const { data: newB, error: createError } = await supabase
           .from('businesses')
           .insert({
-            user_id: userId,
+            owner_id: userId,
             business_name: 'My Business',
             currency: 'SLL',
+            business_type: 'retail',
           })
           .select()
           .single();
 
         if (newB) {
           setBusiness(newB as Business);
+        } else {
+          console.error('Failed to create default business:', createError);
         }
+      }
+
+      // Fetch profile to get first_name and last_name
+      const { data: profData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (profData) {
+        const fullName = profData.first_name
+          ? `${profData.first_name}${profData.last_name ? ' ' + profData.last_name : ''}`
+          : undefined;
+        setUser((prev) => (prev ? { ...prev, full_name: fullName || prev.full_name } : prev));
       }
     } catch (e) {
       console.error('Error fetching business info:', e);
@@ -147,9 +182,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!error && data.user) {
       // Create initial business profile
       await supabase.from('businesses').insert({
-        user_id: data.user.id,
+        owner_id: data.user.id,
         business_name: businessName || 'My Business',
         currency: 'SLL',
+        business_type: 'retail',
       });
     }
 
