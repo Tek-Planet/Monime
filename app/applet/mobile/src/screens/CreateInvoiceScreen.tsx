@@ -4,11 +4,13 @@ import { Input } from '../components/Input';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { ApiService } from '../services/api';
 import { Customer } from '../types';
 
 export const CreateInvoiceScreen = ({ navigation }: any) => {
   const { user, business } = useAuth();
+  const { colors } = useTheme();
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -77,8 +79,8 @@ export const CreateInvoiceScreen = ({ navigation }: any) => {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Create New Invoice</Text>
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: colors.background }]}>
+      <Text style={[styles.title, { color: colors.textPrimary }]}>Create New Invoice</Text>
 
       <Input
         label="Invoice Number"
@@ -87,21 +89,27 @@ export const CreateInvoiceScreen = ({ navigation }: any) => {
       />
 
       {/* Select Customer */}
-      <Text style={styles.sectionHeader}>Select Customer *</Text>
+      <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>Select Customer *</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalChips}>
         {customers.map((c) => (
           <TouchableOpacity
             key={c.id}
-            style={[styles.chip, selectedCustomer?.id === c.id ? styles.chipActive : null]}
+            style={[
+              styles.chip,
+              { backgroundColor: colors.cardBorder },
+              selectedCustomer?.id === c.id ? { backgroundColor: colors.primary } : null,
+            ]}
             onPress={() => setSelectedCustomer(c)}
           >
-            <Text style={[styles.chipText, selectedCustomer?.id === c.id ? styles.chipTextActive : null]}>{c.name}</Text>
+            <Text style={[styles.chipText, { color: colors.textSecondary }, selectedCustomer?.id === c.id ? { color: '#FFFFFF' } : null]}>
+              {c.name}
+            </Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
 
       {/* Items List */}
-      <Text style={styles.sectionHeader}>Invoice Line Items</Text>
+      <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>Invoice Line Items</Text>
       {items.map((item, idx) => (
         <Card key={idx} style={styles.itemCard}>
           <Input
@@ -157,8 +165,10 @@ export const CreateInvoiceScreen = ({ navigation }: any) => {
       {/* Total & Submit */}
       <Card style={styles.totalCard}>
         <View style={styles.totalRow}>
-          <Text style={styles.totalLabel}>Invoice Total:</Text>
-          <Text style={styles.totalVal}>{currency} {totalAmount.toLocaleString()}</Text>
+          <Text style={[styles.totalLabel, { color: colors.textPrimary }]}>Invoice Total:</Text>
+          <Text style={[styles.totalVal, { color: colors.primary }]}>
+            {currency} {totalAmount.toLocaleString()}
+          </Text>
         </View>
 
         <Button
@@ -173,19 +183,17 @@ export const CreateInvoiceScreen = ({ navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
-  container: { padding: 16, backgroundColor: '#F8FAFC' },
-  title: { fontSize: 20, fontWeight: '800', color: '#0F172A', marginBottom: 12 },
-  sectionHeader: { fontSize: 14, fontWeight: '700', color: '#475569', marginTop: 14, marginBottom: 8 },
+  container: { padding: 16 },
+  title: { fontSize: 20, fontWeight: '800', marginBottom: 12 },
+  sectionHeader: { fontSize: 14, fontWeight: '700', marginTop: 14, marginBottom: 8 },
   horizontalChips: { flexDirection: 'row', marginBottom: 10 },
-  chip: { backgroundColor: '#E2E8F0', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, marginRight: 8 },
-  chipActive: { backgroundColor: '#2563EB' },
-  chipText: { fontSize: 13, color: '#334155', fontWeight: '600' },
-  chipTextActive: { color: '#FFFFFF' },
+  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, marginRight: 8 },
+  chipText: { fontSize: 13, fontWeight: '600' },
   itemCard: { padding: 12, marginBottom: 8 },
   row: { flexDirection: 'row', justifyContent: 'space-between' },
-  totalCard: { marginTop: 16, padding: 16, backgroundColor: '#FFFFFF' },
+  totalCard: { marginTop: 16, padding: 16 },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
-  totalLabel: { fontSize: 16, fontWeight: '700', color: '#334155' },
-  totalVal: { fontSize: 22, fontWeight: '800', color: '#2563EB' },
-  submitBtn: { backgroundColor: '#2563EB' },
+  totalLabel: { fontSize: 16, fontWeight: '700' },
+  totalVal: { fontSize: 22, fontWeight: '800' },
+  submitBtn: { marginTop: 4 },
 });

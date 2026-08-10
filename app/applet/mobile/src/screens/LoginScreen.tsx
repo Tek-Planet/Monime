@@ -4,10 +4,12 @@ import { Input } from '../components/Input';
 import { Button } from '../components/Button';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 export const LoginScreen = ({ navigation }: any) => {
   const { signIn } = useAuth();
   const { t } = useLanguage();
+  const { colors, isDark } = useTheme();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,14 +31,14 @@ export const LoginScreen = ({ navigation }: any) => {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: isDark ? '#0F172A' : '#6E56CF' }]}>
       <View style={styles.headerBox}>
         <Text style={styles.logoText}>MiBuks Mobile</Text>
         <Text style={styles.subText}>{t('auth.welcome')}</Text>
       </View>
 
-      <View style={styles.formCard}>
-        <Text style={styles.formTitle}>{t('auth.login')}</Text>
+      <View style={[styles.formCard, { backgroundColor: colors.cardBg }]}>
+        <Text style={[styles.formTitle, { color: colors.textPrimary }]}>{t('auth.login')}</Text>
 
         <Input
           label={t('auth.email')}
@@ -66,7 +68,7 @@ export const LoginScreen = ({ navigation }: any) => {
           style={styles.switchBtn}
           onPress={() => navigation.navigate('Register')}
         >
-          <Text style={styles.switchText}>Don't have an account? Sign Up</Text>
+          <Text style={[styles.switchText, { color: colors.primary }]}>Don't have an account? Sign Up</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -76,7 +78,6 @@ export const LoginScreen = ({ navigation }: any) => {
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    backgroundColor: '#0F172A',
     justifyContent: 'center',
     padding: 20,
   },
@@ -86,16 +87,15 @@ const styles = StyleSheet.create({
   },
   logoText: {
     fontSize: 32,
-    fontWeight: '800',
-    color: '#38BDF8',
+    fontWeight: '900',
+    color: '#FFFFFF',
   },
   subText: {
-    color: '#94A3B8',
+    color: '#E0E7FF',
     fontSize: 16,
     marginTop: 6,
   },
   formCard: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 24,
     shadowColor: '#000',
@@ -105,8 +105,7 @@ const styles = StyleSheet.create({
   },
   formTitle: {
     fontSize: 20,
-    fontWeight: '700',
-    color: '#0F172A',
+    fontWeight: '800',
     marginBottom: 16,
   },
   loginBtn: {
@@ -117,8 +116,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   switchText: {
-    color: '#2563EB',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });

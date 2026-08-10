@@ -1,14 +1,15 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface ButtonProps {
   title: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'outline' | 'destructive';
+  variant?: 'primary' | 'secondary' | 'outline' | 'destructive' | 'success';
   loading?: boolean;
   disabled?: boolean;
-  style?: ViewStyle;
-  textStyle?: TextStyle;
+  style?: ViewStyle | ViewStyle[];
+  textStyle?: TextStyle | TextStyle[];
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -20,19 +21,23 @@ export const Button: React.FC<ButtonProps> = ({
   style,
   textStyle,
 }) => {
+  const { colors, isDark } = useTheme();
+
   const getBackgroundColor = () => {
-    if (disabled) return '#CBD5E1';
+    if (disabled) return isDark ? '#475569' : '#CBD5E1';
     switch (variant) {
-      case 'primary': return '#2563EB';
-      case 'secondary': return '#0F172A';
+      case 'primary': return colors.primary;
+      case 'secondary': return colors.secondary;
       case 'outline': return 'transparent';
-      case 'destructive': return '#DC2626';
-      default: return '#2563EB';
+      case 'destructive': return colors.danger;
+      case 'success': return colors.prosperityGreen;
+      default: return colors.primary;
     }
   };
 
   const getTextColor = () => {
-    if (variant === 'outline') return '#2563EB';
+    if (disabled) return isDark ? '#94A3B8' : '#64748B';
+    if (variant === 'outline') return colors.primary;
     return '#FFFFFF';
   };
 
@@ -41,7 +46,7 @@ export const Button: React.FC<ButtonProps> = ({
       style={[
         styles.button,
         { backgroundColor: getBackgroundColor() },
-        variant === 'outline' && styles.outlineBorder,
+        variant === 'outline' && { borderWidth: 1.5, borderColor: colors.primary },
         style,
       ]}
       onPress={onPress}
@@ -66,12 +71,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginVertical: 6,
   },
-  outlineBorder: {
-    borderWidth: 1.5,
-    borderColor: '#2563EB',
-  },
   text: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });

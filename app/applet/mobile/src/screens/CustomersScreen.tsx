@@ -6,12 +6,14 @@ import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { ApiService } from '../services/api';
 import { Customer } from '../types';
 
 export const CustomersScreen = ({ navigation }: any) => {
   const { business } = useAuth();
   const { t } = useLanguage();
+  const { colors } = useTheme();
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -42,7 +44,7 @@ export const CustomersScreen = ({ navigation }: any) => {
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Header title={t('nav.customers')} />
 
       <View style={styles.topBar}>
@@ -50,7 +52,6 @@ export const CustomersScreen = ({ navigation }: any) => {
           placeholder="Search customer name or phone..."
           value={searchQuery}
           onChangeText={setSearchQuery}
-          style={styles.searchInput}
         />
         <Button
           title="+ Add Customer"
@@ -62,27 +63,30 @@ export const CustomersScreen = ({ navigation }: any) => {
       <FlatList
         data={filteredCustomers}
         keyExtractor={(item) => item.id}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadCustomers} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadCustomers} tintColor={colors.primary} />}
         contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
           <Card style={styles.card}>
             <View style={styles.cardHeader}>
               <View>
-                <Text style={styles.name}>{item.name}</Text>
-                {item.phone && <Text style={styles.phone}>📞 {item.phone}</Text>}
+                <Text style={[styles.name, { color: colors.textPrimary }]}>{item.name}</Text>
+                {item.phone && <Text style={[styles.phone, { color: colors.textSecondary }]}>📞 {item.phone}</Text>}
               </View>
             </View>
 
-            <View style={styles.cardBody}>
-              <Text style={styles.balanceText}>
-                Credit Balance: <Text style={styles.balanceVal}>{currency} {Number(item.current_balance || 0).toLocaleString()}</Text>
+            <View style={[styles.cardBody, { borderTopColor: colors.cardBorder }]}>
+              <Text style={[styles.balanceText, { color: colors.textSecondary }]}>
+                Credit Balance:{' '}
+                <Text style={[styles.balanceVal, { color: colors.danger }]}>
+                  {currency} {Number(item.current_balance || 0).toLocaleString()}
+                </Text>
               </Text>
             </View>
           </Card>
         )}
         ListEmptyComponent={
           <Card style={styles.emptyCard}>
-            <Text style={styles.emptyText}>No customers registered yet.</Text>
+            <Text style={[styles.emptyText, { color: colors.textMuted }]}>No customers registered yet.</Text>
           </Card>
         }
       />
@@ -91,18 +95,17 @@ export const CustomersScreen = ({ navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
+  container: { flex: 1 },
   topBar: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4 },
-  searchInput: { backgroundColor: '#FFFFFF' },
   addBtn: { marginBottom: 10 },
   listContent: { paddingHorizontal: 16, paddingBottom: 20 },
   card: { padding: 14 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  name: { fontSize: 16, fontWeight: '700', color: '#0F172A' },
-  phone: { fontSize: 13, color: '#64748B', marginTop: 2 },
-  cardBody: { marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
-  balanceText: { fontSize: 13, color: '#475569' },
-  balanceVal: { fontWeight: '700', color: '#DC2626' },
+  name: { fontSize: 16, fontWeight: '700' },
+  phone: { fontSize: 13, marginTop: 2 },
+  cardBody: { marginTop: 8, paddingTop: 8, borderTopWidth: 1 },
+  balanceText: { fontSize: 13 },
+  balanceVal: { fontWeight: '700' },
   emptyCard: { padding: 20, alignItems: 'center' },
-  emptyText: { color: '#64748B', fontSize: 14 },
+  emptyText: { fontSize: 14 },
 });

@@ -6,12 +6,14 @@ import { Input } from '../components/Input';
 import { Button } from '../components/Button';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { ApiService } from '../services/api';
 import { Sale } from '../types';
 
 export const SalesScreen = ({ navigation }: any) => {
   const { business, selectedBranch } = useAuth();
   const { t } = useLanguage();
+  const { colors } = useTheme();
 
   const [sales, setSales] = useState<Sale[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -42,7 +44,7 @@ export const SalesScreen = ({ navigation }: any) => {
   });
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Header title={t('nav.sales')} />
 
       <View style={styles.topBar}>
@@ -50,7 +52,6 @@ export const SalesScreen = ({ navigation }: any) => {
           placeholder="Search customer or date..."
           value={searchQuery}
           onChangeText={setSearchQuery}
-          style={styles.searchInput}
         />
         <Button
           title="+ New Sale"
@@ -62,28 +63,32 @@ export const SalesScreen = ({ navigation }: any) => {
       <FlatList
         data={filteredSales}
         keyExtractor={(item) => item.id}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadSales} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadSales} tintColor={colors.primary} />}
         contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
           <TouchableOpacity onPress={() => navigation.navigate('SaleDetail', { sale: item })}>
             <Card style={styles.card}>
               <View style={styles.cardHeader}>
-                <Text style={styles.customerName}>{item.customer?.name || 'Walk-in Customer'}</Text>
-                <Text style={styles.amount}>{currency} {Number(item.total_amount).toLocaleString()}</Text>
+                <Text style={[styles.customerName, { color: colors.textPrimary }]}>
+                  {item.customer?.name || 'Walk-in Customer'}
+                </Text>
+                <Text style={[styles.amount, { color: colors.prosperityGreen }]}>
+                  {currency} {Number(item.total_amount).toLocaleString()}
+                </Text>
               </View>
 
-              <View style={styles.cardFooter}>
-                <Text style={styles.detailsText}>
+              <View style={[styles.cardFooter, { borderTopColor: colors.cardBorder }]}>
+                <Text style={[styles.detailsText, { color: colors.textSecondary }]}>
                   📅 {item.sale_date} • 💳 {item.payment_method?.replace('_', ' ').toUpperCase()}
                 </Text>
-                {item.notes && <Text style={styles.notesText}>Note: {item.notes}</Text>}
+                {item.notes && <Text style={[styles.notesText, { color: colors.textMuted }]}>Note: {item.notes}</Text>}
               </View>
             </Card>
           </TouchableOpacity>
         )}
         ListEmptyComponent={
           <Card style={styles.emptyCard}>
-            <Text style={styles.emptyText}>No sales recorded yet.</Text>
+            <Text style={[styles.emptyText, { color: colors.textMuted }]}>No sales recorded yet.</Text>
           </Card>
         }
       />
@@ -92,18 +97,17 @@ export const SalesScreen = ({ navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
+  container: { flex: 1 },
   topBar: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4 },
-  searchInput: { backgroundColor: '#FFFFFF' },
   addBtn: { marginBottom: 10 },
   listContent: { paddingHorizontal: 16, paddingBottom: 20 },
   card: { padding: 14 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  customerName: { fontSize: 15, fontWeight: '700', color: '#0F172A' },
-  amount: { fontSize: 16, fontWeight: '800', color: '#16A34A' },
-  cardFooter: { marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
-  detailsText: { fontSize: 12, color: '#64748B' },
-  notesText: { fontSize: 12, color: '#94A3B8', marginTop: 2, fontStyle: 'italic' },
+  customerName: { fontSize: 15, fontWeight: '700' },
+  amount: { fontSize: 16, fontWeight: '800' },
+  cardFooter: { marginTop: 8, paddingTop: 8, borderTopWidth: 1 },
+  detailsText: { fontSize: 12 },
+  notesText: { fontSize: 12, marginTop: 2, fontStyle: 'italic' },
   emptyCard: { padding: 20, alignItems: 'center' },
-  emptyText: { color: '#64748B', fontSize: 14 },
+  emptyText: { fontSize: 14 },
 });

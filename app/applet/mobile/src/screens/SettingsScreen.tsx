@@ -7,12 +7,14 @@ import { Input } from '../components/Input';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage, Language } from '../contexts/LanguageContext';
 import { usePinLock } from '../contexts/PinLockContext';
+import { useTheme, ThemeMode } from '../contexts/ThemeContext';
 import { supabase } from '../config/supabase';
 
 export const SettingsScreen = () => {
   const { user, business, branches, selectedBranch, setSelectedBranch, signOut, refreshBusiness } = useAuth();
   const { language, setLanguage, t } = useLanguage();
   const { isPinEnabled, enablePin, disablePin } = usePinLock();
+  const { colors, themeMode, setThemeMode } = useTheme();
 
   const [businessName, setBusinessName] = useState(business?.business_name || '');
   const [phone, setPhone] = useState(business?.phone || '');
@@ -60,20 +62,51 @@ export const SettingsScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Header title={t('nav.settings')} />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Account Info */}
         <Card style={styles.card}>
-          <Text style={styles.cardTitle}>Account Profile</Text>
-          <Text style={styles.userEmail}>{user?.email}</Text>
-          <Text style={styles.userRole}>Owner / User Account</Text>
+          <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Account Profile</Text>
+          <Text style={[styles.userEmail, { color: colors.primary }]}>{user?.email}</Text>
+          <Text style={[styles.userRole, { color: colors.textSecondary }]}>Owner / User Account</Text>
+        </Card>
+
+        {/* Theme Preferences */}
+        <Card style={styles.card}>
+          <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>App Theme Mode</Text>
+          <Text style={[styles.subText, { color: colors.textSecondary, marginBottom: 10 }]}>
+            Select your preferred visual theme
+          </Text>
+          <View style={styles.rowSelector}>
+            {(['light', 'dark', 'system'] as ThemeMode[]).map((mode) => (
+              <TouchableOpacity
+                key={mode}
+                style={[
+                  styles.optionBtn,
+                  { backgroundColor: colors.cardBorder },
+                  themeMode === mode ? { backgroundColor: colors.primary } : null,
+                ]}
+                onPress={() => setThemeMode(mode)}
+              >
+                <Text
+                  style={[
+                    styles.optionText,
+                    { color: colors.textSecondary },
+                    themeMode === mode ? { color: '#FFFFFF' } : null,
+                  ]}
+                >
+                  {mode === 'light' ? '☀️ Light' : mode === 'dark' ? '🌙 Dark' : '💻 System'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </Card>
 
         {/* Business Settings */}
         <Card style={styles.card}>
-          <Text style={styles.cardTitle}>Business Profile</Text>
+          <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Business Profile</Text>
 
           <Input
             label="Business Name"
@@ -105,20 +138,22 @@ export const SettingsScreen = () => {
         {/* Branch Selection */}
         {branches.length > 0 && (
           <Card style={styles.card}>
-            <Text style={styles.cardTitle}>Active Branch</Text>
+            <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Active Branch</Text>
             {branches.map((b) => (
               <TouchableOpacity
                 key={b.id}
                 style={[
                   styles.branchItem,
-                  selectedBranch?.id === b.id ? styles.branchItemActive : null,
+                  { backgroundColor: colors.cardBorder },
+                  selectedBranch?.id === b.id ? { backgroundColor: colors.primary } : null,
                 ]}
                 onPress={() => setSelectedBranch(b)}
               >
                 <Text
                   style={[
                     styles.branchName,
-                    selectedBranch?.id === b.id ? styles.branchNameActive : null,
+                    { color: colors.textPrimary },
+                    selectedBranch?.id === b.id ? { color: '#FFFFFF' } : null,
                   ]}
                 >
                   {b.name} {b.is_main ? '(Main Branch)' : ''}
@@ -130,21 +165,23 @@ export const SettingsScreen = () => {
 
         {/* Language Selection */}
         <Card style={styles.card}>
-          <Text style={styles.cardTitle}>App Language</Text>
-          <View style={styles.langRow}>
+          <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>App Language</Text>
+          <View style={styles.rowSelector}>
             {(['en', 'krio', 'fr'] as Language[]).map((lang) => (
               <TouchableOpacity
                 key={lang}
                 style={[
-                  styles.langBtn,
-                  language === lang ? styles.langBtnActive : null,
+                  styles.optionBtn,
+                  { backgroundColor: colors.cardBorder },
+                  language === lang ? { backgroundColor: colors.primary } : null,
                 ]}
                 onPress={() => setLanguage(lang)}
               >
                 <Text
                   style={[
-                    styles.langText,
-                    language === lang ? styles.langTextActive : null,
+                    styles.optionText,
+                    { color: colors.textSecondary },
+                    language === lang ? { color: '#FFFFFF' } : null,
                   ]}
                 >
                   {lang === 'en' ? 'English' : lang === 'krio' ? 'Krio' : 'Français'}
@@ -158,12 +195,13 @@ export const SettingsScreen = () => {
         <Card style={styles.card}>
           <View style={styles.switchRow}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.cardTitle}>{t('settings.pinLock')}</Text>
-              <Text style={styles.subText}>Require a 4-digit PIN to open app</Text>
+              <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>{t('settings.pinLock')}</Text>
+              <Text style={[styles.subText, { color: colors.textSecondary }]}>Require a 4-digit PIN to open app</Text>
             </View>
             <Switch
               value={isPinEnabled}
               onValueChange={handleTogglePin}
+              trackColor={{ false: colors.cardBorder, true: colors.primary }}
             />
           </View>
 
@@ -192,23 +230,19 @@ export const SettingsScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
+  container: { flex: 1 },
   scrollContent: { padding: 16 },
   card: { padding: 16, marginBottom: 12 },
-  cardTitle: { fontSize: 16, fontWeight: '700', color: '#0F172A', marginBottom: 8 },
-  userEmail: { fontSize: 15, fontWeight: '600', color: '#2563EB' },
-  userRole: { fontSize: 12, color: '#64748B', marginTop: 2 },
-  subText: { fontSize: 12, color: '#64748B' },
+  cardTitle: { fontSize: 16, fontWeight: '700', marginBottom: 6 },
+  userEmail: { fontSize: 15, fontWeight: '700' },
+  userRole: { fontSize: 12, marginTop: 2 },
+  subText: { fontSize: 12 },
   saveBtn: { marginTop: 12 },
-  branchItem: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 8, backgroundColor: '#F1F5F9', marginBottom: 6 },
-  branchItemActive: { backgroundColor: '#2563EB' },
-  branchName: { fontSize: 14, fontWeight: '600', color: '#334155' },
-  branchNameActive: { color: '#FFFFFF' },
-  langRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
-  langBtn: { flex: 0.31, paddingVertical: 10, backgroundColor: '#F1F5F9', borderRadius: 8, alignItems: 'center' },
-  langBtnActive: { backgroundColor: '#0F172A' },
-  langText: { fontSize: 13, fontWeight: '700', color: '#334155' },
-  langTextActive: { color: '#FFFFFF' },
+  branchItem: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 8, marginBottom: 6 },
+  branchName: { fontSize: 14, fontWeight: '600' },
+  rowSelector: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
+  optionBtn: { flex: 0.31, paddingVertical: 10, borderRadius: 8, alignItems: 'center' },
+  optionText: { fontSize: 13, fontWeight: '700' },
   switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   logoutBtn: { marginTop: 10, marginBottom: 30 },
 });

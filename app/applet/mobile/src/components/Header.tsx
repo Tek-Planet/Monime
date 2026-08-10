@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { usePinLock } from '../contexts/PinLockContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface HeaderProps {
   title: string;
@@ -12,6 +13,7 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
   const { business, selectedBranch } = useAuth();
   const { language, setLanguage } = useLanguage();
   const { isPinEnabled, lockApp } = usePinLock();
+  const { colors, isDark } = useTheme();
 
   const toggleLanguage = () => {
     if (language === 'en') setLanguage('krio');
@@ -20,13 +22,17 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
   };
 
   return (
-    <View style={styles.header}>
+    <View style={[styles.header, { backgroundColor: colors.headerBg }]}>
       <View>
-        <Text style={styles.businessName}>{business?.business_name || 'MiBuks Mobile'}</Text>
+        <Text style={[styles.businessName, { color: isDark ? '#94A3B8' : '#E0E7FF' }]}>
+          {business?.business_name || 'MiBuks Mobile'}
+        </Text>
         {selectedBranch && (
-          <Text style={styles.branchName}>📍 {selectedBranch.name}</Text>
+          <Text style={[styles.branchName, { color: isDark ? '#38BDF8' : '#FDE047' }]}>
+            📍 {selectedBranch.name}
+          </Text>
         )}
-        <Text style={styles.title}>{title}</Text>
+        <Text style={[styles.title, { color: colors.headerText }]}>{title}</Text>
       </View>
 
       <View style={styles.actions}>
@@ -49,26 +55,23 @@ const styles = StyleSheet.create({
     paddingTop: 48,
     paddingHorizontal: 20,
     paddingBottom: 16,
-    backgroundColor: '#0F172A',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
   },
   businessName: {
-    color: '#94A3B8',
     fontSize: 12,
     fontWeight: '600',
     textTransform: 'uppercase',
   },
   branchName: {
-    color: '#38BDF8',
     fontSize: 12,
     marginTop: 2,
+    fontWeight: '600',
   },
   title: {
-    color: '#FFFFFF',
     fontSize: 22,
-    fontWeight: '700',
+    fontWeight: '800',
     marginTop: 2,
   },
   actions: {
@@ -76,7 +79,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   langBtn: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
@@ -88,7 +91,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   iconBtn: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     padding: 6,
     borderRadius: 8,
     marginLeft: 8,

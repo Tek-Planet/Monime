@@ -4,10 +4,12 @@ import { Input } from '../components/Input';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { ApiService } from '../services/api';
 
 export const AddSupplierScreen = ({ navigation }: any) => {
   const { business } = useAuth();
+  const { colors } = useTheme();
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -46,8 +48,8 @@ export const AddSupplierScreen = ({ navigation }: any) => {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Add New Supplier</Text>
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: colors.background }]}>
+      <Text style={[styles.title, { color: colors.textPrimary }]}>Add New Supplier</Text>
 
       <Card style={styles.card}>
         <Input
@@ -99,8 +101,8 @@ export const AddSupplierScreen = ({ navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
-  container: { padding: 16, backgroundColor: '#F8FAFC' },
-  title: { fontSize: 20, fontWeight: '800', color: '#0F172A', marginBottom: 12 },
+  container: { padding: 16 },
+  title: { fontSize: 20, fontWeight: '800', marginBottom: 12 },
   card: { padding: 16 },
-  submitBtn: { marginTop: 16, backgroundColor: '#0F172A' },
+  submitBtn: { marginTop: 16 },
 });

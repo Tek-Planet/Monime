@@ -4,12 +4,14 @@ import { Input } from '../components/Input';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { ApiService } from '../services/api';
 
 const CATEGORIES = ['Rent & Shop Utilities', 'Salaries & Staff Wages', 'Inventory Procurement', 'Transport & Logistics', 'Generator & Fuel', 'Taxes & Licenses', 'Miscellaneous'];
 
 export const AddExpenseScreen = ({ navigation }: any) => {
   const { business, selectedBranch } = useAuth();
+  const { colors } = useTheme();
 
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [amount, setAmount] = useState('');
@@ -51,19 +53,25 @@ export const AddExpenseScreen = ({ navigation }: any) => {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Record Business Expense</Text>
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: colors.background }]}>
+      <Text style={[styles.title, { color: colors.textPrimary }]}>Record Business Expense</Text>
 
       {/* Categories Horizontal Selector */}
-      <Text style={styles.sectionHeader}>Expense Category *</Text>
+      <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>Expense Category *</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalChips}>
         {CATEGORIES.map((cat) => (
           <TouchableOpacity
             key={cat}
-            style={[styles.chip, category === cat ? styles.chipActive : null]}
+            style={[
+              styles.chip,
+              { backgroundColor: colors.cardBorder },
+              category === cat ? { backgroundColor: colors.danger } : null,
+            ]}
             onPress={() => setCategory(cat)}
           >
-            <Text style={[styles.chipText, category === cat ? styles.chipTextActive : null]}>{cat}</Text>
+            <Text style={[styles.chipText, { color: colors.textSecondary }, category === cat ? { color: '#FFFFFF' } : null]}>
+              {cat}
+            </Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -86,6 +94,7 @@ export const AddExpenseScreen = ({ navigation }: any) => {
 
         <Button
           title="Save Expense"
+          variant="destructive"
           onPress={handleSaveExpense}
           loading={loading}
           style={styles.submitBtn}
@@ -96,14 +105,12 @@ export const AddExpenseScreen = ({ navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
-  container: { padding: 16, backgroundColor: '#F8FAFC' },
-  title: { fontSize: 20, fontWeight: '800', color: '#0F172A', marginBottom: 12 },
-  sectionHeader: { fontSize: 14, fontWeight: '700', color: '#475569', marginTop: 8, marginBottom: 8 },
+  container: { padding: 16 },
+  title: { fontSize: 20, fontWeight: '800', marginBottom: 12 },
+  sectionHeader: { fontSize: 14, fontWeight: '700', marginTop: 8, marginBottom: 8 },
   horizontalChips: { flexDirection: 'row', marginBottom: 12 },
-  chip: { backgroundColor: '#E2E8F0', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, marginRight: 8 },
-  chipActive: { backgroundColor: '#DC2626' },
-  chipText: { fontSize: 13, color: '#334155', fontWeight: '600' },
-  chipTextActive: { color: '#FFFFFF' },
+  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, marginRight: 8 },
+  chipText: { fontSize: 13, fontWeight: '600' },
   card: { padding: 16 },
-  submitBtn: { marginTop: 16, backgroundColor: '#DC2626' },
+  submitBtn: { marginTop: 16 },
 });

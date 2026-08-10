@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, FlatList, RefreshControl } from 'react-native';
 import { Header } from '../components/Header';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { ApiService } from '../services/api';
 import { Invoice } from '../types';
 
 export const InvoicesScreen = ({ navigation }: any) => {
   const { business } = useAuth();
   const { t } = useLanguage();
+  const { colors } = useTheme();
 
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -45,7 +47,7 @@ export const InvoicesScreen = ({ navigation }: any) => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Header title={t('nav.invoices')} />
 
       <View style={styles.topBar}>
@@ -59,28 +61,30 @@ export const InvoicesScreen = ({ navigation }: any) => {
       <FlatList
         data={invoices}
         keyExtractor={(item) => item.id}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadInvoices} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadInvoices} tintColor={colors.primary} />}
         contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
           <Card style={styles.card}>
             <View style={styles.cardHeader}>
               <View>
-                <Text style={styles.invNumber}>INV-{item.invoice_number}</Text>
-                <Text style={styles.customerName}>{item.customer?.name || 'Customer'}</Text>
+                <Text style={[styles.invNumber, { color: colors.primary }]}>INV-{item.invoice_number}</Text>
+                <Text style={[styles.customerName, { color: colors.textPrimary }]}>{item.customer?.name || 'Customer'}</Text>
               </View>
               <Badge label={item.status} variant={getStatusVariant(item.status)} />
             </View>
 
-            <View style={styles.cardBody}>
-              <Text style={styles.amount}>{currency} {Number(item.total_amount).toLocaleString()}</Text>
-              <Text style={styles.dateText}>Issue Date: {item.invoice_date}</Text>
-              {item.due_date && <Text style={styles.dateText}>Due Date: {item.due_date}</Text>}
+            <View style={[styles.cardBody, { borderTopColor: colors.cardBorder }]}>
+              <Text style={[styles.amount, { color: colors.textPrimary }]}>
+                {currency} {Number(item.total_amount).toLocaleString()}
+              </Text>
+              <Text style={[styles.dateText, { color: colors.textMuted }]}>Issue Date: {item.invoice_date}</Text>
+              {item.due_date && <Text style={[styles.dateText, { color: colors.textMuted }]}>Due Date: {item.due_date}</Text>}
             </View>
           </Card>
         )}
         ListEmptyComponent={
           <Card style={styles.emptyCard}>
-            <Text style={styles.emptyText}>No invoices issued yet.</Text>
+            <Text style={[styles.emptyText, { color: colors.textMuted }]}>No invoices issued yet.</Text>
           </Card>
         }
       />
@@ -89,17 +93,17 @@ export const InvoicesScreen = ({ navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
+  container: { flex: 1 },
   topBar: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4 },
   addBtn: { marginBottom: 10 },
   listContent: { paddingHorizontal: 16, paddingBottom: 20 },
   card: { padding: 14 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  invNumber: { fontSize: 13, fontWeight: '800', color: '#2563EB' },
-  customerName: { fontSize: 15, fontWeight: '700', color: '#0F172A', marginTop: 2 },
-  cardBody: { marginTop: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
-  amount: { fontSize: 17, fontWeight: '800', color: '#0F172A', marginBottom: 4 },
-  dateText: { fontSize: 12, color: '#64748B' },
+  invNumber: { fontSize: 13, fontWeight: '800' },
+  customerName: { fontSize: 15, fontWeight: '700', marginTop: 2 },
+  cardBody: { marginTop: 10, paddingTop: 8, borderTopWidth: 1 },
+  amount: { fontSize: 17, fontWeight: '800', marginBottom: 4 },
+  dateText: { fontSize: 12 },
   emptyCard: { padding: 20, alignItems: 'center' },
-  emptyText: { color: '#64748B', fontSize: 14 },
+  emptyText: { fontSize: 14 },
 });

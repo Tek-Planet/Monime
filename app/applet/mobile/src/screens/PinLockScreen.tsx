@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { usePinLock } from '../contexts/PinLockContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 export const PinLockScreen = () => {
   const { unlockApp } = usePinLock();
+  const { colors, isDark } = useTheme();
   const [pin, setPin] = useState('');
 
   const handleKeyPress = (num: string) => {
@@ -29,7 +31,7 @@ export const PinLockScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: isDark ? '#0F172A' : '#6E56CF' }]}>
       <Text style={styles.logo}>🔒 MiBuks Security</Text>
       <Text style={styles.title}>Enter Security PIN</Text>
 
@@ -73,21 +75,20 @@ export const PinLockScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
   logo: {
-    color: '#38BDF8',
+    color: '#FDE047',
     fontSize: 20,
-    fontWeight: '700',
+    fontWeight: '800',
     marginBottom: 8,
   },
   title: {
     color: '#FFFFFF',
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '700',
     marginBottom: 30,
   },
   pinDots: {
@@ -99,11 +100,11 @@ const styles = StyleSheet.create({
     height: 18,
     borderRadius: 9,
     borderWidth: 2,
-    borderColor: '#38BDF8',
+    borderColor: '#FFFFFF',
     marginHorizontal: 10,
   },
   dotFilled: {
-    backgroundColor: '#38BDF8',
+    backgroundColor: '#FFFFFF',
   },
   keypad: {
     width: '100%',
@@ -118,7 +119,7 @@ const styles = StyleSheet.create({
     width: 70,
     height: 70,
     borderRadius: 35,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -128,6 +129,6 @@ const styles = StyleSheet.create({
   keyText: {
     color: '#FFFFFF',
     fontSize: 24,
-    fontWeight: '700',
+    fontWeight: '800',
   },
 });

@@ -4,11 +4,13 @@ import { Header } from '../components/Header';
 import { Card } from '../components/Card';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { ApiService } from '../services/api';
 
 export const ReportsScreen = () => {
   const { business, selectedBranch } = useAuth();
   const { t } = useLanguage();
+  const { colors, isDark } = useTheme();
 
   const [loading, setLoading] = useState(false);
   const [totalRevenue, setTotalRevenue] = useState(0);
@@ -50,40 +52,49 @@ export const ReportsScreen = () => {
   const netProfit = totalRevenue - totalExpenses;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Header title={t('nav.reports')} />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={loadReportData} />}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={loadReportData} tintColor={colors.primary} />}
       >
-        <Text style={styles.sectionTitle}>Financial Performance Summary</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Financial Performance Summary</Text>
 
         <Card style={styles.card}>
-          <Text style={styles.label}>Total Sales Volume</Text>
-          <Text style={styles.value}>{totalSalesCount} Transactions</Text>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>Total Sales Volume</Text>
+          <Text style={[styles.value, { color: colors.textPrimary }]}>{totalSalesCount} Transactions</Text>
         </Card>
 
         <Card style={styles.card}>
-          <Text style={styles.label}>Gross Sales Revenue</Text>
-          <Text style={[styles.value, { color: '#16A34A' }]}>{currency} {totalRevenue.toLocaleString()}</Text>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>Gross Sales Revenue</Text>
+          <Text style={[styles.value, { color: colors.prosperityGreen }]}>{currency} {totalRevenue.toLocaleString()}</Text>
         </Card>
 
         <Card style={styles.card}>
-          <Text style={styles.label}>Total Operating Expenses</Text>
-          <Text style={[styles.value, { color: '#DC2626' }]}>{currency} {totalExpenses.toLocaleString()}</Text>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>Total Operating Expenses</Text>
+          <Text style={[styles.value, { color: colors.danger }]}>{currency} {totalExpenses.toLocaleString()}</Text>
         </Card>
 
-        <Card style={[styles.card, { backgroundColor: netProfit >= 0 ? '#F0FDF4' : '#FEF2F2' }]}>
-          <Text style={styles.label}>Net Profit / Loss</Text>
-          <Text style={[styles.value, { color: netProfit >= 0 ? '#15803D' : '#B91C1C' }]}>
+        <Card
+          style={[
+            styles.card,
+            {
+              backgroundColor: netProfit >= 0
+                ? (isDark ? 'rgba(16, 185, 129, 0.15)' : '#F0FDF4')
+                : (isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEF2F2'),
+            },
+          ]}
+        >
+          <Text style={[styles.label, { color: colors.textSecondary }]}>Net Profit / Loss</Text>
+          <Text style={[styles.value, { color: netProfit >= 0 ? colors.prosperityGreen : colors.danger }]}>
             {currency} {netProfit.toLocaleString()}
           </Text>
         </Card>
 
         <Card style={styles.card}>
-          <Text style={styles.label}>Current Inventory Valuation</Text>
-          <Text style={[styles.value, { color: '#2563EB' }]}>{currency} {inventoryValuation.toLocaleString()}</Text>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>Current Inventory Valuation</Text>
+          <Text style={[styles.value, { color: colors.fintechBlue }]}>{currency} {inventoryValuation.toLocaleString()}</Text>
         </Card>
       </ScrollView>
     </View>
@@ -91,10 +102,10 @@ export const ReportsScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
+  container: { flex: 1 },
   scrollContent: { padding: 16 },
-  sectionTitle: { fontSize: 16, fontWeight: '800', color: '#0F172A', marginBottom: 12 },
+  sectionTitle: { fontSize: 16, fontWeight: '800', marginBottom: 12 },
   card: { padding: 16, marginBottom: 10 },
-  label: { fontSize: 12, color: '#64748B', fontWeight: '600', textTransform: 'uppercase' },
-  value: { fontSize: 20, fontWeight: '800', color: '#0F172A', marginTop: 4 },
+  label: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase' },
+  value: { fontSize: 20, fontWeight: '800', marginTop: 4 },
 });

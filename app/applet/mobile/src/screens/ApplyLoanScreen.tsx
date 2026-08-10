@@ -4,9 +4,11 @@ import { Input } from '../components/Input';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 export const ApplyLoanScreen = ({ route, navigation }: any) => {
   const { business } = useAuth();
+  const { colors, isDark } = useTheme();
   const credit = route.params?.credit;
 
   const currency = business?.currency || 'SLL';
@@ -39,10 +41,10 @@ export const ApplyLoanScreen = ({ route, navigation }: any) => {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Apply for Micro-Loan</Text>
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: colors.background }]}>
+      <Text style={[styles.title, { color: colors.textPrimary }]}>Apply for Micro-Loan</Text>
 
-      <Card style={styles.infoCard}>
+      <Card style={[styles.infoCard, { backgroundColor: isDark ? '#1E293B' : '#0F172A' }]}>
         <Text style={styles.infoTitle}>Max Loan Limit Based on Credit Rating</Text>
         <Text style={styles.infoVal}>{currency} {maxAllowed.toLocaleString()}</Text>
         <Text style={styles.infoSub}>Pre-approved Rate: {credit?.recommendedInterestRate || 8.5}% p.a.</Text>
@@ -72,6 +74,7 @@ export const ApplyLoanScreen = ({ route, navigation }: any) => {
 
         <Button
           title="Submit Application"
+          variant="success"
           onPress={handleApply}
           loading={loading}
           style={styles.submitBtn}
@@ -82,12 +85,12 @@ export const ApplyLoanScreen = ({ route, navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
-  container: { padding: 16, backgroundColor: '#F8FAFC' },
-  title: { fontSize: 20, fontWeight: '800', color: '#0F172A', marginBottom: 12 },
-  infoCard: { backgroundColor: '#1E293B', padding: 16, marginBottom: 12 },
+  container: { padding: 16 },
+  title: { fontSize: 20, fontWeight: '800', marginBottom: 12 },
+  infoCard: { padding: 16, marginBottom: 12 },
   infoTitle: { color: '#94A3B8', fontSize: 12, textTransform: 'uppercase' },
   infoVal: { color: '#38BDF8', fontSize: 22, fontWeight: '800', marginTop: 4 },
   infoSub: { color: '#4ADE80', fontSize: 12, marginTop: 4 },
   card: { padding: 16 },
-  submitBtn: { marginTop: 16, backgroundColor: '#16A34A' },
+  submitBtn: { marginTop: 16 },
 });

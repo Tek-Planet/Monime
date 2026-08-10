@@ -4,11 +4,13 @@ import { Input } from '../components/Input';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { ApiService } from '../services/api';
 import { Customer, InventoryItem } from '../types';
 
 export const AddSaleScreen = ({ navigation }: any) => {
   const { user, business, selectedBranch } = useAuth();
+  const { colors } = useTheme();
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
@@ -96,77 +98,109 @@ export const AddSaleScreen = ({ navigation }: any) => {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Record New Sale</Text>
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: colors.background }]}>
+      <Text style={[styles.title, { color: colors.textPrimary }]}>Record New Sale</Text>
 
       {/* Customer Selection */}
-      <Text style={styles.sectionHeader}>Customer</Text>
+      <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>Customer</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalChips}>
         <TouchableOpacity
-          style={[styles.chip, !selectedCustomer ? styles.chipActive : null]}
+          style={[
+            styles.chip,
+            { backgroundColor: colors.cardBorder },
+            !selectedCustomer ? { backgroundColor: colors.primary } : null,
+          ]}
           onPress={() => setSelectedCustomer(null)}
         >
-          <Text style={[styles.chipText, !selectedCustomer ? styles.chipTextActive : null]}>Walk-in Customer</Text>
+          <Text style={[styles.chipText, { color: colors.textSecondary }, !selectedCustomer ? { color: '#FFFFFF' } : null]}>
+            Walk-in Customer
+          </Text>
         </TouchableOpacity>
 
         {customers.map((c) => (
           <TouchableOpacity
             key={c.id}
-            style={[styles.chip, selectedCustomer?.id === c.id ? styles.chipActive : null]}
+            style={[
+              styles.chip,
+              { backgroundColor: colors.cardBorder },
+              selectedCustomer?.id === c.id ? { backgroundColor: colors.primary } : null,
+            ]}
             onPress={() => setSelectedCustomer(c)}
           >
-            <Text style={[styles.chipText, selectedCustomer?.id === c.id ? styles.chipTextActive : null]}>{c.name}</Text>
+            <Text style={[styles.chipText, { color: colors.textSecondary }, selectedCustomer?.id === c.id ? { color: '#FFFFFF' } : null]}>
+              {c.name}
+            </Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
 
       {/* Product Catalog */}
-      <Text style={styles.sectionHeader}>Select Products</Text>
+      <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>Select Products</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalChips}>
         {inventory.map((item) => (
           <TouchableOpacity
             key={item.id}
-            style={styles.productCard}
+            style={[styles.productCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}
             onPress={() => addToCart(item)}
           >
-            <Text style={styles.productName}>{item.name}</Text>
-            <Text style={styles.productPrice}>{currency} {Number(item.unit_price).toLocaleString()}</Text>
-            <Text style={styles.productStock}>Stock: {item.stock_quantity}</Text>
+            <Text style={[styles.productName, { color: colors.textPrimary }]}>{item.name}</Text>
+            <Text style={[styles.productPrice, { color: colors.prosperityGreen }]}>
+              {currency} {Number(item.unit_price).toLocaleString()}
+            </Text>
+            <Text style={[styles.productStock, { color: colors.textMuted }]}>Stock: {item.stock_quantity}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
 
       {/* Cart Summary */}
-      <Text style={styles.sectionHeader}>Order Items</Text>
+      <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>Order Items</Text>
       {cart.map((item) => (
         <Card key={item.product.id} style={styles.cartRow}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.cartName}>{item.product.name}</Text>
-            <Text style={styles.cartPrice}>{currency} {Number(item.product.unit_price).toLocaleString()} each</Text>
+            <Text style={[styles.cartName, { color: colors.textPrimary }]}>{item.product.name}</Text>
+            <Text style={[styles.cartPrice, { color: colors.textMuted }]}>
+              {currency} {Number(item.product.unit_price).toLocaleString()} each
+            </Text>
           </View>
 
           <View style={styles.qtyRow}>
-            <TouchableOpacity style={styles.qtyBtn} onPress={() => updateQuantity(item.product.id, -1)}>
-              <Text style={styles.qtyBtnText}>-</Text>
+            <TouchableOpacity
+              style={[styles.qtyBtn, { backgroundColor: colors.cardBorder }]}
+              onPress={() => updateQuantity(item.product.id, -1)}
+            >
+              <Text style={[styles.qtyBtnText, { color: colors.textPrimary }]}>-</Text>
             </TouchableOpacity>
-            <Text style={styles.qtyText}>{item.quantity}</Text>
-            <TouchableOpacity style={styles.qtyBtn} onPress={() => updateQuantity(item.product.id, 1)}>
-              <Text style={styles.qtyBtnText}>+</Text>
+            <Text style={[styles.qtyText, { color: colors.textPrimary }]}>{item.quantity}</Text>
+            <TouchableOpacity
+              style={[styles.qtyBtn, { backgroundColor: colors.cardBorder }]}
+              onPress={() => updateQuantity(item.product.id, 1)}
+            >
+              <Text style={[styles.qtyBtnText, { color: colors.textPrimary }]}>+</Text>
             </TouchableOpacity>
           </View>
         </Card>
       ))}
 
       {/* Payment Method */}
-      <Text style={styles.sectionHeader}>Payment Method</Text>
+      <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>Payment Method</Text>
       <View style={styles.methodGrid}>
         {(['cash', 'mobile_money', 'bank_transfer', 'credit'] as const).map((method) => (
           <TouchableOpacity
             key={method}
-            style={[styles.methodBtn, paymentMethod === method ? styles.methodBtnActive : null]}
+            style={[
+              styles.methodBtn,
+              { backgroundColor: colors.cardBg, borderColor: colors.cardBorder },
+              paymentMethod === method ? { backgroundColor: colors.primary, borderColor: colors.primary } : null,
+            ]}
             onPress={() => setPaymentMethod(method)}
           >
-            <Text style={[styles.methodText, paymentMethod === method ? styles.methodTextActive : null]}>
+            <Text
+              style={[
+                styles.methodText,
+                { color: colors.textSecondary },
+                paymentMethod === method ? { color: '#FFFFFF' } : null,
+              ]}
+            >
               {method.replace('_', ' ').toUpperCase()}
             </Text>
           </TouchableOpacity>
@@ -183,12 +217,15 @@ export const AddSaleScreen = ({ navigation }: any) => {
       {/* Total & Submit */}
       <Card style={styles.totalCard}>
         <View style={styles.totalRow}>
-          <Text style={styles.totalLabel}>Grand Total:</Text>
-          <Text style={styles.totalVal}>{currency} {totalAmount.toLocaleString()}</Text>
+          <Text style={[styles.totalLabel, { color: colors.textPrimary }]}>Grand Total:</Text>
+          <Text style={[styles.totalVal, { color: colors.prosperityGreen }]}>
+            {currency} {totalAmount.toLocaleString()}
+          </Text>
         </View>
 
         <Button
           title="Complete Sale"
+          variant="success"
           onPress={handleSaveSale}
           loading={loading}
           style={styles.submitBtn}
@@ -199,33 +236,29 @@ export const AddSaleScreen = ({ navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
-  container: { padding: 16, backgroundColor: '#F8FAFC' },
-  title: { fontSize: 20, fontWeight: '800', color: '#0F172A', marginBottom: 12 },
-  sectionHeader: { fontSize: 14, fontWeight: '700', color: '#475569', marginTop: 14, marginBottom: 8 },
+  container: { padding: 16 },
+  title: { fontSize: 20, fontWeight: '800', marginBottom: 12 },
+  sectionHeader: { fontSize: 14, fontWeight: '700', marginTop: 14, marginBottom: 8 },
   horizontalChips: { flexDirection: 'row', marginBottom: 10 },
-  chip: { backgroundColor: '#E2E8F0', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, marginRight: 8 },
-  chipActive: { backgroundColor: '#2563EB' },
-  chipText: { fontSize: 13, color: '#334155', fontWeight: '600' },
-  chipTextActive: { color: '#FFFFFF' },
-  productCard: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#CBD5E1', padding: 12, borderRadius: 12, marginRight: 10, width: 130 },
-  productName: { fontSize: 13, fontWeight: '700', color: '#0F172A' },
-  productPrice: { fontSize: 13, fontWeight: '800', color: '#16A34A', marginTop: 4 },
-  productStock: { fontSize: 11, color: '#64748B', marginTop: 2 },
+  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, marginRight: 8 },
+  chipText: { fontSize: 13, fontWeight: '600' },
+  productCard: { borderWidth: 1, padding: 12, borderRadius: 12, marginRight: 10, width: 130 },
+  productName: { fontSize: 13, fontWeight: '700' },
+  productPrice: { fontSize: 13, fontWeight: '800', marginTop: 4 },
+  productStock: { fontSize: 11, marginTop: 2 },
   cartRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12 },
-  cartName: { fontSize: 14, fontWeight: '700', color: '#0F172A' },
-  cartPrice: { fontSize: 12, color: '#64748B' },
+  cartName: { fontSize: 14, fontWeight: '700' },
+  cartPrice: { fontSize: 12 },
   qtyRow: { flexDirection: 'row', alignItems: 'center' },
-  qtyBtn: { width: 30, height: 30, borderRadius: 6, backgroundColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center' },
-  qtyBtnText: { fontSize: 16, fontWeight: '800', color: '#0F172A' },
+  qtyBtn: { width: 30, height: 30, borderRadius: 6, justifyContent: 'center', alignItems: 'center' },
+  qtyBtnText: { fontSize: 16, fontWeight: '800' },
   qtyText: { fontSize: 14, fontWeight: '700', marginHorizontal: 12 },
   methodGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 10 },
-  methodBtn: { width: '48%', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#CBD5E1', paddingVertical: 10, borderRadius: 10, alignItems: 'center', marginBottom: 8 },
-  methodBtnActive: { backgroundColor: '#0F172A', borderColor: '#0F172A' },
-  methodText: { fontSize: 12, fontWeight: '700', color: '#334155' },
-  methodTextActive: { color: '#FFFFFF' },
-  totalCard: { marginTop: 16, padding: 16, backgroundColor: '#FFFFFF' },
+  methodBtn: { width: '48%', borderWidth: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center', marginBottom: 8 },
+  methodText: { fontSize: 12, fontWeight: '700' },
+  totalCard: { marginTop: 16, padding: 16 },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
-  totalLabel: { fontSize: 16, fontWeight: '700', color: '#334155' },
-  totalVal: { fontSize: 22, fontWeight: '800', color: '#16A34A' },
-  submitBtn: { backgroundColor: '#16A34A' },
+  totalLabel: { fontSize: 16, fontWeight: '700' },
+  totalVal: { fontSize: 22, fontWeight: '800' },
+  submitBtn: { marginTop: 4 },
 });

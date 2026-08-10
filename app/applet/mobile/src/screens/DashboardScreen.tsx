@@ -5,12 +5,14 @@ import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { ApiService } from '../services/api';
 import { Sale, InventoryItem, CreditScoreResult } from '../types';
 
 export const DashboardScreen = ({ navigation }: any) => {
   const { business, selectedBranch } = useAuth();
   const { t } = useLanguage();
+  const { colors, isDark } = useTheme();
 
   const [sales, setSales] = useState<Sale[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
@@ -46,34 +48,36 @@ export const DashboardScreen = ({ navigation }: any) => {
   const lowStockItems = inventory.filter((i) => i.stock_quantity <= (i.min_stock_level || 5));
 
   return (
-    <View style={styles.flex}>
+    <View style={[styles.flex, { backgroundColor: colors.background }]}>
       <Header title={t('nav.dashboard')} />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}
       >
         {/* KPI Grid */}
         <View style={styles.statsRow}>
           <Card style={styles.statCard}>
-            <Text style={styles.statLabel}>{t('dashboard.totalRevenue')}</Text>
-            <Text style={styles.statValue}>{currency} {totalRevenue.toLocaleString()}</Text>
-            <Text style={styles.statSub}>{sales.length} total sales</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{t('dashboard.totalRevenue')}</Text>
+            <Text style={[styles.statValue, { color: colors.prosperityGreen }]}>
+              {currency} {totalRevenue.toLocaleString()}
+            </Text>
+            <Text style={[styles.statSub, { color: colors.textMuted }]}>{sales.length} total sales</Text>
           </Card>
 
           <Card style={styles.statCard}>
-            <Text style={styles.statLabel}>{t('dashboard.lowStockAlerts')}</Text>
-            <Text style={[styles.statValue, { color: lowStockItems.length > 0 ? '#DC2626' : '#16A34A' }]}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{t('dashboard.lowStockAlerts')}</Text>
+            <Text style={[styles.statValue, { color: lowStockItems.length > 0 ? colors.danger : colors.success }]}>
               {lowStockItems.length}
             </Text>
-            <Text style={styles.statSub}>Items below threshold</Text>
+            <Text style={[styles.statSub, { color: colors.textMuted }]}>Items below threshold</Text>
           </Card>
         </View>
 
         {/* Credit Score Banner */}
         {creditResult && (
-          <TouchableOpacity onPress={() => navigation.navigate('CreditStack')}>
-            <Card style={styles.creditBanner}>
+          <TouchableOpacity onPress={() => navigation.navigate('Credit')}>
+            <Card style={[styles.creditBanner, { backgroundColor: isDark ? '#1E293B' : '#0F172A' }]}>
               <View style={styles.creditHeader}>
                 <View>
                   <Text style={styles.creditSubTitle}>MiBuks Business Rating</Text>
@@ -89,50 +93,70 @@ export const DashboardScreen = ({ navigation }: any) => {
         )}
 
         {/* Quick Actions */}
-        <Text style={styles.sectionTitle}>{t('dashboard.quickActions')}</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>{t('dashboard.quickActions')}</Text>
         <View style={styles.quickActionsGrid}>
-          <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('AddSale')}>
+          <TouchableOpacity
+            style={[styles.actionBtn, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}
+            onPress={() => navigation.navigate('AddSale')}
+          >
             <Text style={styles.actionIcon}>🛍️</Text>
-            <Text style={styles.actionLabel}>New Sale</Text>
+            <Text style={[styles.actionLabel, { color: colors.textPrimary }]}>New Sale</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('CreateInvoice')}>
+          <TouchableOpacity
+            style={[styles.actionBtn, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}
+            onPress={() => navigation.navigate('CreateInvoice')}
+          >
             <Text style={styles.actionIcon}>📄</Text>
-            <Text style={styles.actionLabel}>Invoice</Text>
+            <Text style={[styles.actionLabel, { color: colors.textPrimary }]}>Invoice</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('AddInventory')}>
+          <TouchableOpacity
+            style={[styles.actionBtn, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}
+            onPress={() => navigation.navigate('AddInventory')}
+          >
             <Text style={styles.actionIcon}>📦</Text>
-            <Text style={styles.actionLabel}>Add Product</Text>
+            <Text style={[styles.actionLabel, { color: colors.textPrimary }]}>Add Product</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('CreditStack')}>
+          <TouchableOpacity
+            style={[styles.actionBtn, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}
+            onPress={() => navigation.navigate('Credit')}
+          >
             <Text style={styles.actionIcon}>📈</Text>
-            <Text style={styles.actionLabel}>Credit Rating</Text>
+            <Text style={[styles.actionLabel, { color: colors.textPrimary }]}>Credit Rating</Text>
           </TouchableOpacity>
         </View>
 
         {/* Recent Transactions */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Recent Sales</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('SalesStack')}>
-            <Text style={styles.viewAllText}>View All</Text>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Recent Sales</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('Sales')}>
+            <Text style={[styles.viewAllText, { color: colors.primary }]}>View All</Text>
           </TouchableOpacity>
         </View>
 
         {sales.slice(0, 5).map((sale) => (
           <Card key={sale.id} style={styles.saleRow}>
             <View style={styles.saleLeft}>
-              <Text style={styles.saleCustomer}>{sale.customer?.name || 'Walk-in Customer'}</Text>
-              <Text style={styles.saleDate}>{sale.sale_date} • {sale.payment_method?.toUpperCase()}</Text>
+              <Text style={[styles.saleCustomer, { color: colors.textPrimary }]}>
+                {sale.customer?.name || 'Walk-in Customer'}
+              </Text>
+              <Text style={[styles.saleDate, { color: colors.textMuted }]}>
+                {sale.sale_date} • {sale.payment_method?.toUpperCase()}
+              </Text>
             </View>
-            <Text style={styles.saleAmount}>{currency} {Number(sale.total_amount).toLocaleString()}</Text>
+            <Text style={[styles.saleAmount, { color: colors.prosperityGreen }]}>
+              {currency} {Number(sale.total_amount).toLocaleString()}
+            </Text>
           </Card>
         ))}
 
         {sales.length === 0 && (
           <Card style={styles.emptyCard}>
-            <Text style={styles.emptyText}>No sales recorded yet. Tap "New Sale" to start!</Text>
+            <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+              No sales recorded yet. Tap "New Sale" to start!
+            </Text>
           </Card>
         )}
       </ScrollView>
@@ -141,31 +165,31 @@ export const DashboardScreen = ({ navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: '#F8FAFC' },
+  flex: { flex: 1 },
   scrollContent: { padding: 16 },
   statsRow: { flexDirection: 'row', justifyContent: 'space-between' },
   statCard: { flex: 0.48, padding: 14 },
-  statLabel: { fontSize: 12, color: '#64748B', fontWeight: '600' },
-  statValue: { fontSize: 18, fontWeight: '800', color: '#0F172A', marginVertical: 4 },
-  statSub: { fontSize: 11, color: '#94A3B8' },
-  creditBanner: { backgroundColor: '#1E293B', borderColor: '#334155' },
+  statLabel: { fontSize: 12, fontWeight: '600' },
+  statValue: { fontSize: 18, fontWeight: '800', marginVertical: 4 },
+  statSub: { fontSize: 11 },
+  creditBanner: { padding: 16, borderRadius: 14, marginVertical: 10 },
   creditHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  creditSubTitle: { color: '#94A3B8', fontSize: 12 },
+  creditSubTitle: { color: '#94A3B8', fontSize: 12, fontWeight: '600', textTransform: 'uppercase' },
   creditScoreVal: { color: '#38BDF8', fontSize: 24, fontWeight: '800', marginTop: 2 },
   creditDesc: { color: '#E2E8F0', fontSize: 13, marginTop: 10 },
   boldText: { fontWeight: '700', color: '#38BDF8' },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, marginBottom: 8 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: '#0F172A', marginVertical: 10 },
-  viewAllText: { fontSize: 13, color: '#2563EB', fontWeight: '600' },
+  sectionTitle: { fontSize: 16, fontWeight: '800', marginVertical: 10 },
+  viewAllText: { fontSize: 13, fontWeight: '700' },
   quickActionsGrid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
-  actionBtn: { flex: 0.23, backgroundColor: '#FFFFFF', padding: 12, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0' },
+  actionBtn: { flex: 0.23, padding: 12, borderRadius: 12, alignItems: 'center', borderWidth: 1 },
   actionIcon: { fontSize: 22, marginBottom: 4 },
-  actionLabel: { fontSize: 11, fontWeight: '600', color: '#334155', textAlign: 'center' },
+  actionLabel: { fontSize: 11, fontWeight: '700', textAlign: 'center' },
   saleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12 },
   saleLeft: { flex: 1 },
-  saleCustomer: { fontSize: 14, fontWeight: '700', color: '#0F172A' },
-  saleDate: { fontSize: 12, color: '#64748B', marginTop: 2 },
-  saleAmount: { fontSize: 15, fontWeight: '700', color: '#16A34A' },
+  saleCustomer: { fontSize: 14, fontWeight: '700' },
+  saleDate: { fontSize: 12, marginTop: 2 },
+  saleAmount: { fontSize: 15, fontWeight: '800' },
   emptyCard: { alignItems: 'center', padding: 20 },
-  emptyText: { color: '#64748B', fontSize: 14, textAlign: 'center' },
+  emptyText: { fontSize: 14, textAlign: 'center' },
 });
