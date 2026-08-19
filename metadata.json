@@ -1,0 +1,6 @@
+{
+  "name": "MiBuks Business Hub",
+  "description": "Personalized business management platform tailored for restaurants, provision stores, retail, and service businesses.",
+  "requestFramePermissions": ["camera", "geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

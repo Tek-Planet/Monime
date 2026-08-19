@@ -29,6 +29,8 @@ import { toast } from 'sonner'
 import { useTheme } from 'next-themes'
 import { useQueryClient } from '@tanstack/react-query'
 
+import { BUSINESS_TYPES, getBusinessArchetype, ARCHETYPE_CONFIGS } from '@/lib/businessArchetypes'
+
 const SettingsPage = () => {
   const { t, locale, language: contextLanguage, setLanguage: setContextLanguage } = useLanguage()
   const { user, signOut } = useAuth()
@@ -599,13 +601,31 @@ const SettingsPage = () => {
                       <SelectTrigger>
                         <SelectValue placeholder={t("settings.selectBusinessType")} />
                       </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="supermarket">{t("settings.supermarket")}</SelectItem>
-                        <SelectItem value="convenience_store">{t("settings.convenienceStore")}</SelectItem>
-                        <SelectItem value="grocery_store">{t("settings.groceryStore")}</SelectItem>
-                        <SelectItem value="provision_shop">{t("settings.provisionShop")}</SelectItem>
-                        <SelectItem value="mini_mart">{t("settings.miniMart")}</SelectItem>
-                        <SelectItem value="retail">{t("settings.generalRetail")}</SelectItem>
+                      <SelectContent className="max-h-72">
+                        <div className="px-2 py-1 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                          🍽️ Food & Hospitality
+                        </div>
+                        {BUSINESS_TYPES.filter(b => b.archetype === 'food').map(b => (
+                          <SelectItem key={b.value} value={b.value}>
+                            {b.label}
+                          </SelectItem>
+                        ))}
+                        <div className="px-2 py-1 text-[11px] font-bold text-muted-foreground uppercase tracking-wider mt-2 border-t pt-1.5">
+                          🛒 Provision Store & Retail
+                        </div>
+                        {BUSINESS_TYPES.filter(b => b.archetype === 'retail').map(b => (
+                          <SelectItem key={b.value} value={b.value}>
+                            {b.label}
+                          </SelectItem>
+                        ))}
+                        <div className="px-2 py-1 text-[11px] font-bold text-muted-foreground uppercase tracking-wider mt-2 border-t pt-1.5">
+                          💼 Services & Trades
+                        </div>
+                        {BUSINESS_TYPES.filter(b => b.archetype === 'service').map(b => (
+                          <SelectItem key={b.value} value={b.value}>
+                            {b.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>

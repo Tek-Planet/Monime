@@ -24,6 +24,35 @@ export const DashboardScreen = ({ navigation }: any) => {
 
   const currency = business?.currency || 'SLL';
 
+  const archetype = useMemo(() => {
+    const bType = (business?.business_type || '').toLowerCase();
+    if (
+      bType.includes('restaurant') ||
+      bType.includes('food') ||
+      bType.includes('bar') ||
+      bType.includes('bakery') ||
+      bType.includes('cafe') ||
+      bType.includes('chop') ||
+      bType.includes('catering')
+    ) {
+      return 'food';
+    }
+    if (
+      bType.includes('service') ||
+      bType.includes('salon') ||
+      bType.includes('barber') ||
+      bType.includes('tailor') ||
+      bType.includes('repair') ||
+      bType.includes('mechanic') ||
+      bType.includes('consult') ||
+      bType.includes('clean') ||
+      bType.includes('laundry')
+    ) {
+      return 'service';
+    }
+    return 'retail';
+  }, [business?.business_type]);
+
   const formatCurrency = (amount: number) => {
     if (currency === 'SLL') {
       return `Le ${amount.toLocaleString()}`;
@@ -220,13 +249,13 @@ export const DashboardScreen = ({ navigation }: any) => {
           </View>
         </Card>
 
-        {/* Metrics Grid (4 Metric Cards matching Web) */}
+        {/* Metrics Grid (4 Metric Cards matching Web Archetype) */}
         <View style={styles.metricsGrid}>
           {/* Card 1: Total Revenue */}
           <Card style={styles.metricCard}>
             <View style={styles.metricHeader}>
               <Text style={[styles.metricTitle, { color: colors.textSecondary }]}>
-                {t('dashboard.totalRevenue')}
+                {archetype === 'food' ? 'Food & Drink Revenue' : archetype === 'service' ? 'Total Service Revenue' : t('dashboard.totalRevenue')}
               </Text>
               <Text style={styles.metricIcon}>💰</Text>
             </View>
@@ -234,47 +263,47 @@ export const DashboardScreen = ({ navigation }: any) => {
               {formatCurrency(metrics.totalRevenue)}
             </Text>
             <Text style={[styles.metricSub, { color: colors.textMuted }]}>
-              {t('dashboard.fromSales')}
+              {archetype === 'food' ? 'from meals & orders' : archetype === 'service' ? 'from service fees' : t('dashboard.fromSales')}
             </Text>
           </Card>
 
-          {/* Card 2: Active Customers */}
+          {/* Card 2: Operations Volume / Customers */}
           <Card style={styles.metricCard}>
             <View style={styles.metricHeader}>
               <Text style={[styles.metricTitle, { color: colors.textSecondary }]}>
-                {t('dashboard.activeCustomers')}
+                {archetype === 'food' ? 'Meals & Orders Served' : archetype === 'service' ? 'Jobs & Bookings' : t('dashboard.activeCustomers')}
               </Text>
-              <Text style={styles.metricIcon}>👥</Text>
+              <Text style={styles.metricIcon}>{archetype === 'food' ? '🍽️' : archetype === 'service' ? '🛠️' : '👥'}</Text>
             </View>
             <Text style={[styles.metricValue, { color: colors.textPrimary }]}>
-              {metrics.activeCustomers}
+              {archetype === 'food' ? metrics.salesCount : archetype === 'service' ? metrics.salesCount : metrics.activeCustomers}
             </Text>
             <Text style={[styles.metricSub, { color: colors.textMuted }]}>
-              {t('dashboard.totalCustomers')}
+              {archetype === 'food' ? 'orders fulfilled' : archetype === 'service' ? 'jobs completed' : t('dashboard.totalCustomers')}
             </Text>
           </Card>
 
-          {/* Card 3: Inventory Value */}
+          {/* Card 3: Inventory Value / Stock */}
           <Card style={styles.metricCard}>
             <View style={styles.metricHeader}>
               <Text style={[styles.metricTitle, { color: colors.textSecondary }]}>
-                {t('dashboard.inventoryValue')}
+                {archetype === 'food' ? 'Menu & Stock' : archetype === 'service' ? 'Active Clients' : t('dashboard.inventoryValue')}
               </Text>
-              <Text style={styles.metricIcon}>📦</Text>
+              <Text style={styles.metricIcon}>{archetype === 'food' ? '📋' : archetype === 'service' ? '👥' : '📦'}</Text>
             </View>
             <Text style={[styles.metricValue, { color: colors.fintechBlue }]}>
-              {formatCurrency(metrics.inventoryValue)}
+              {archetype === 'service' ? metrics.activeCustomers : formatCurrency(metrics.inventoryValue)}
             </Text>
             <Text style={[styles.metricSub, { color: colors.textMuted }]}>
-              {t('dashboard.currentStock')} ({metrics.inventoryCount} items)
+              {archetype === 'food' ? `${metrics.inventoryCount} dishes & items` : archetype === 'service' ? 'client roster' : `${t('dashboard.currentStock')} (${metrics.inventoryCount} items)`}
             </Text>
           </Card>
 
-          {/* Card 4: Pending Invoices */}
+          {/* Card 4: Pending Invoices / Credits */}
           <Card style={styles.metricCard}>
             <View style={styles.metricHeader}>
               <Text style={[styles.metricTitle, { color: colors.textSecondary }]}>
-                {t('dashboard.pendingInvoices')}
+                {archetype === 'food' ? 'Pending Table Bills' : archetype === 'service' ? 'Outstanding Invoices' : t('dashboard.pendingInvoices')}
               </Text>
               <Text style={styles.metricIcon}>💳</Text>
             </View>
@@ -282,7 +311,7 @@ export const DashboardScreen = ({ navigation }: any) => {
               {formatCurrency(metrics.pendingInvoiceAmount)}
             </Text>
             <Text style={[styles.metricSub, { color: colors.textMuted }]}>
-              {t('dashboard.awaitingPayment')} ({metrics.pendingCount} invoices)
+              {archetype === 'food' ? `${metrics.pendingCount} unpaid table orders` : archetype === 'service' ? `${metrics.pendingCount} unpaid client bills` : `${t('dashboard.awaitingPayment')} (${metrics.pendingCount})`}
             </Text>
           </Card>
         </View>
