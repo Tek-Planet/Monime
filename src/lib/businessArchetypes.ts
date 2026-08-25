@@ -18,8 +18,8 @@ export const BUSINESS_TYPES: BusinessTypeOption[] = [
     archetype: 'food',
     description: 'Dine-in, takeaway, chop bars, and eateries',
     iconName: 'Utensils',
-    starterCategories: ['Main Dishes', 'Sides & Extras', 'Drinks & Beverages', 'Specials'],
-    defaultUnits: ['Plate', 'Portion', 'Bowl', 'Cup', 'Bottle', 'Order'],
+    starterCategories: ['Main Dishes', 'Sides & Extras', 'Drinks & Beverages', 'Appetizers & Starters', 'Specials & Combos', 'Desserts', 'Kitchen Ingredients'],
+    defaultUnits: ['Plate', 'Portion', 'Bowl', 'Cup', 'Bottle', 'Order', 'Serving'],
   },
   {
     value: 'chop_bar',
@@ -27,8 +27,8 @@ export const BUSINESS_TYPES: BusinessTypeOption[] = [
     archetype: 'food',
     description: 'Local dishes, cookeries, and food stalls',
     iconName: 'Soup',
-    starterCategories: ['Cookery Dishes', 'Soups & Stews', 'Sides', 'Soft Drinks'],
-    defaultUnits: ['Plate', 'Bowl', 'Cup', 'Wrap', 'Piece'],
+    starterCategories: ['Cookery Dishes', 'Soups & Stews', 'Rice & Starches', 'Soft Drinks & Juices', 'Local Meats & Fish', 'Specials'],
+    defaultUnits: ['Plate', 'Bowl', 'Cup', 'Wrap', 'Piece', 'Portion'],
   },
   {
     value: 'bakery',
@@ -36,8 +36,8 @@ export const BUSINESS_TYPES: BusinessTypeOption[] = [
     archetype: 'food',
     description: 'Fresh bread, cakes, pastries, and snacks',
     iconName: 'Cake',
-    starterCategories: ['Bread & Loaves', 'Cakes & Pastries', 'Snacks', 'Hot Beverages'],
-    defaultUnits: ['Loaf', 'Piece', 'Box', 'Pack', 'Slice'],
+    starterCategories: ['Bread & Loaves', 'Cakes & Pastries', 'Pies & Snacks', 'Hot Beverages', 'Baking Ingredients & Flour'],
+    defaultUnits: ['Loaf', 'Piece', 'Box', 'Pack', 'Slice', 'Dozen'],
   },
   {
     value: 'cafe',
@@ -45,8 +45,8 @@ export const BUSINESS_TYPES: BusinessTypeOption[] = [
     archetype: 'food',
     description: 'Coffee, tea, breakfast, and light bites',
     iconName: 'Coffee',
-    starterCategories: ['Hot Drinks', 'Cold Drinks', 'Breakfast Items', 'Pastries'],
-    defaultUnits: ['Cup', 'Glass', 'Serving', 'Piece'],
+    starterCategories: ['Hot Coffees & Teas', 'Iced & Cold Drinks', 'Breakfast & Sandwiches', 'Pastries & Desserts', 'Snacks'],
+    defaultUnits: ['Cup', 'Glass', 'Serving', 'Piece', 'Order'],
   },
   {
     value: 'bar_lounge',
@@ -54,8 +54,8 @@ export const BUSINESS_TYPES: BusinessTypeOption[] = [
     archetype: 'food',
     description: 'Drinks, cocktails, beers, and lounge food',
     iconName: 'Wine',
-    starterCategories: ['Beers & Ciders', 'Spirits & Cocktails', 'Soft Drinks', 'Bar Bites'],
-    defaultUnits: ['Bottle', 'Glass', 'Can', 'Shot', 'Plate'],
+    starterCategories: ['Beers & Ciders', 'Spirits & Whiskeys', 'Cocktails & Wine', 'Energy & Soft Drinks', 'Bar Bites & Grills'],
+    defaultUnits: ['Bottle', 'Glass', 'Can', 'Shot', 'Plate', 'Crate'],
   },
   {
     value: 'catering',
@@ -63,8 +63,8 @@ export const BUSINESS_TYPES: BusinessTypeOption[] = [
     archetype: 'food',
     description: 'Event catering, party trays, and bulk meal prep',
     iconName: 'PartyPopper',
-    starterCategories: ['Party Trays', 'Buffet Packages', 'Event Drinks', 'Custom Menus'],
-    defaultUnits: ['Tray', 'Pax', 'Platter', 'Package', 'Pot'],
+    starterCategories: ['Buffet Menus', 'Party Trays & Platters', 'Custom Packages', 'Event Drinks', 'Event Supplies'],
+    defaultUnits: ['Tray', 'Pax', 'Platter', 'Package', 'Pot', 'Plate'],
   },
 
   // Retail & Goods
@@ -74,8 +74,8 @@ export const BUSINESS_TYPES: BusinessTypeOption[] = [
     archetype: 'retail',
     description: 'Groceries, household items, toiletries, and daily provisions',
     iconName: 'Store',
-    starterCategories: ['Foodstuffs & Grains', 'Toiletries', 'Beverages & Milk', 'Household Goods'],
-    defaultUnits: ['Piece', 'Pack', 'Carton', 'Bag', 'Bottle', 'Cup'],
+    starterCategories: ['Foodstuffs & Grains', 'Cooking Oil & Spices', 'Beverages & Milk', 'Toiletries & Soaps', 'Snacks & Sweets', 'Household Essentials'],
+    defaultUnits: ['Piece', 'Pack', 'Carton', 'Bag', 'Bottle', 'Cup', 'Sachet'],
   },
   {
     value: 'supermarket',
@@ -83,8 +83,8 @@ export const BUSINESS_TYPES: BusinessTypeOption[] = [
     archetype: 'retail',
     description: 'Packaged foods, frozen items, home essentials, and goods',
     iconName: 'ShoppingCart',
-    starterCategories: ['Packaged Goods', 'Dairy & Eggs', 'Frozen Foods', 'Personal Care'],
-    defaultUnits: ['Item', 'Pack', 'Box', 'Kg', 'Litre'],
+    starterCategories: ['Packaged Foods', 'Dairy, Milk & Eggs', 'Beverages & Juices', 'Frozen Foods & Meat', 'Personal Care', 'Cleaning & Household', 'Bakery & Snacks'],
+    defaultUnits: ['Item', 'Pack', 'Box', 'Kg', 'Litre', 'Bottle', 'Carton'],
   },
   {
     value: 'clothing',
@@ -92,8 +92,8 @@ export const BUSINESS_TYPES: BusinessTypeOption[] = [
     archetype: 'retail',
     description: 'Apparel, shoes, bags, jewelry, and accessories',
     iconName: 'Shirt',
-    starterCategories: ['Men\'s Wear', 'Women\'s Wear', 'Shoes & Footwear', 'Accessories'],
-    defaultUnits: ['Piece', 'Pair', 'Set'],
+    starterCategories: ['Men\'s Wear', 'Women\'s Wear', 'Children & Baby Wear', 'Shoes & Footwear', 'Bags & Luggage', 'Jewelry & Accessories', 'Underwear & Nightwear'],
+    defaultUnits: ['Piece', 'Pair', 'Set', 'Bundle'],
   },
   {
     value: 'pharmacy',
@@ -101,8 +101,8 @@ export const BUSINESS_TYPES: BusinessTypeOption[] = [
     archetype: 'retail',
     description: 'Prescription medicines, OTC drugs, and healthcare products',
     iconName: 'Pill',
-    starterCategories: ['OTC Medicines', 'Prescription Drugs', 'Supplements', 'First Aid'],
-    defaultUnits: ['Strip', 'Bottle', 'Box', 'Sachet', 'Unit'],
+    starterCategories: ['OTC Pain & Cold', 'Prescription Drugs', 'Vitamins & Supplements', 'First Aid & Bandages', 'Baby Care & Formula', 'Personal Hygiene', 'Medical Supplies'],
+    defaultUnits: ['Strip', 'Bottle', 'Box', 'Sachet', 'Unit', 'Pack', 'Tube'],
   },
   {
     value: 'electronics',
@@ -110,8 +110,18 @@ export const BUSINESS_TYPES: BusinessTypeOption[] = [
     archetype: 'retail',
     description: 'Mobile phones, accessories, gadgets, and electronics',
     iconName: 'Smartphone',
-    starterCategories: ['Phones & Devices', 'Cables & Chargers', 'Audio & Earphones', 'Accessories'],
-    defaultUnits: ['Piece', 'Unit', 'Box', 'Set'],
+    starterCategories: [
+      'Phones & Devices',
+      'Phone Accessories & Cases',
+      'Cables, Chargers & Adapters',
+      'Audio, Headphones & Speakers',
+      'Computers & Laptops',
+      'Power Banks & Batteries',
+      'Smart Home & Gadgets',
+      'Screen Protectors & Covers',
+      'Spare Parts & Tools'
+    ],
+    defaultUnits: ['Piece', 'Unit', 'Box', 'Set', 'Pack', 'Pair'],
   },
   {
     value: 'retail',
@@ -119,8 +129,8 @@ export const BUSINESS_TYPES: BusinessTypeOption[] = [
     archetype: 'retail',
     description: 'General merchandise, goods, and consumer products',
     iconName: 'ShoppingBag',
-    starterCategories: ['General Goods', 'Fast Moving Items', 'Specialty Items'],
-    defaultUnits: ['Piece', 'Pack', 'Box', 'Unit'],
+    starterCategories: ['Fast Moving Goods', 'General Merchandise', 'Home & Living', 'Hardware & Tools', 'Stationery & Books', 'Toys & Gifts'],
+    defaultUnits: ['Piece', 'Pack', 'Box', 'Unit', 'Set'],
   },
   {
     value: 'wholesale',
@@ -128,8 +138,8 @@ export const BUSINESS_TYPES: BusinessTypeOption[] = [
     archetype: 'retail',
     description: 'Bulk goods, warehouse supply, and distributor inventory',
     iconName: 'Truck',
-    starterCategories: ['Bulk Foodstuffs', 'Carton Drinks', 'Household Bundles'],
-    defaultUnits: ['Carton', 'Bag (50kg)', 'Bundle', 'Crate', 'Pallet'],
+    starterCategories: ['Bulk Foodstuffs & Rice', 'Carton Beverages & Water', 'Bulk Cooking Oils & Sugar', 'Household Bundles', 'Wholesale Packs'],
+    defaultUnits: ['Carton', 'Bag (50kg)', 'Bundle', 'Crate', 'Pallet', 'Pack'],
   },
 
   // Services & Trades
@@ -139,8 +149,8 @@ export const BUSINESS_TYPES: BusinessTypeOption[] = [
     archetype: 'service',
     description: 'Haircuts, braiding, styling, grooming, and spa services',
     iconName: 'Scissors',
-    starterCategories: ['Haircuts & Styling', 'Braiding & Weaves', 'Nails & Pedicure', 'Spa & Facial'],
-    defaultUnits: ['Session', 'Service', 'Hour', 'Treatment'],
+    starterCategories: ['Haircuts & Styling', 'Braiding & Extensions', 'Nails & Pedicure', 'Spa & Facial Treatments', 'Hair Care Products', 'Grooming Cosmetics'],
+    defaultUnits: ['Session', 'Service', 'Hour', 'Treatment', 'Unit'],
   },
   {
     value: 'tailoring',
@@ -148,8 +158,8 @@ export const BUSINESS_TYPES: BusinessTypeOption[] = [
     archetype: 'service',
     description: 'Custom sewing, alterations, and traditional attire',
     iconName: 'Needle',
-    starterCategories: ['Custom Outfits', 'Alterations & Repairs', 'Traditional Wear', 'Fabric & Sewing'],
-    defaultUnits: ['Piece', 'Outfit', 'Job', 'Alteration'],
+    starterCategories: ['Custom Outfits', 'Traditional & Native Wear', 'Alterations & Repairs', 'Suits & Formal Wear', 'Fabrics & Textiles', 'Sewing Materials'],
+    defaultUnits: ['Piece', 'Outfit', 'Job', 'Alteration', 'Yard'],
   },
   {
     value: 'repair_mechanic',
@@ -157,8 +167,8 @@ export const BUSINESS_TYPES: BusinessTypeOption[] = [
     archetype: 'service',
     description: 'Vehicle maintenance, appliance repair, and electronics fixing',
     iconName: 'Wrench',
-    starterCategories: ['Diagnostics & Inspection', 'Maintenance & Servicing', 'Parts Replacement', 'Labor'],
-    defaultUnits: ['Job', 'Labor Hour', 'Service', 'Repair'],
+    starterCategories: ['Diagnostics & Inspection', 'Routine Servicing & Oil', 'Brakes & Suspension', 'Engine & Transmission', 'Electrical & Battery', 'Spare Parts', 'Labor Charges'],
+    defaultUnits: ['Job', 'Labor Hour', 'Service', 'Repair', 'Part'],
   },
   {
     value: 'consulting_pro',
@@ -166,8 +176,8 @@ export const BUSINESS_TYPES: BusinessTypeOption[] = [
     archetype: 'service',
     description: 'Legal, accounting, marketing, advisory, and tech services',
     iconName: 'Briefcase',
-    starterCategories: ['Consultations', 'Retainers', 'Project Deliverables', 'Advisory'],
-    defaultUnits: ['Hour', 'Project', 'Session', 'Retainer Month'],
+    starterCategories: ['Consultation Sessions', 'Monthly Retainers', 'Project Deliverables', 'Document Review', 'Advisory & Strategy', 'Training & Workshops'],
+    defaultUnits: ['Hour', 'Project', 'Session', 'Retainer Month', 'Document'],
   },
   {
     value: 'cleaning_laundry',
@@ -175,8 +185,8 @@ export const BUSINESS_TYPES: BusinessTypeOption[] = [
     archetype: 'service',
     description: 'Dry cleaning, laundry wash, and residential/office cleaning',
     iconName: 'Sparkles',
-    starterCategories: ['Wash & Iron', 'Dry Cleaning', 'Home Cleaning', 'Commercial Cleaning'],
-    defaultUnits: ['Kg', 'Piece', 'Hour', 'Job', 'Visit'],
+    starterCategories: ['Wash & Fold / Iron', 'Dry Cleaning', 'Home Cleaning Service', 'Office & Commercial Cleaning', 'Carpet & Upholstery', 'Cleaning Supplies'],
+    defaultUnits: ['Kg', 'Piece', 'Hour', 'Job', 'Visit', 'Room'],
   },
   {
     value: 'services',
@@ -184,10 +194,69 @@ export const BUSINESS_TYPES: BusinessTypeOption[] = [
     archetype: 'service',
     description: 'Freelance, contracting, and general service providers',
     iconName: 'Layers',
-    starterCategories: ['Standard Services', 'Custom Projects', 'Hourly Work'],
-    defaultUnits: ['Job', 'Hour', 'Project', 'Deliverable'],
+    starterCategories: ['Standard Services', 'Custom Projects', 'Hourly Work', 'Consultations', 'Repairs & Maintenance', 'Special Packages'],
+    defaultUnits: ['Job', 'Hour', 'Project', 'Deliverable', 'Day'],
   },
 ];
+
+export function getBusinessTypeOption(businessType?: string | null): BusinessTypeOption | undefined {
+  if (!businessType) return undefined;
+  return BUSINESS_TYPES.find(b => b.value === businessType || b.value.toLowerCase() === businessType.toLowerCase());
+}
+
+export function getCategoriesForBusinessType(
+  businessType?: string | null,
+  existingCategories: (string | null | undefined)[] = []
+): string[] {
+  let baseCategories: string[] = [];
+
+  const foundType = getBusinessTypeOption(businessType);
+  if (foundType && foundType.starterCategories && foundType.starterCategories.length > 0) {
+    baseCategories = [...foundType.starterCategories];
+  } else {
+    // Check archetype fallback
+    const archetype = getBusinessArchetype(businessType);
+    if (archetype === 'food') {
+      baseCategories = ['Main Dishes', 'Sides & Extras', 'Drinks & Beverages', 'Appetizers & Starters', 'Specials', 'Desserts', 'Kitchen Stock'];
+    } else if (archetype === 'service') {
+      baseCategories = ['Standard Services', 'Custom Projects', 'Hourly Work', 'Consultations', 'Materials & Supplies'];
+    } else {
+      baseCategories = ['General Goods', 'Fast Moving Items', 'Specialty Items', 'Accessories', 'Household'];
+    }
+  }
+
+  // Extract clean unique categories from existing inventory
+  const cleanExisting = existingCategories
+    .filter((cat): cat is string => typeof cat === 'string' && cat.trim().length > 0)
+    .map(c => c.trim());
+
+  // Merge presets with existing categories and append 'Other'
+  const set = new Set<string>();
+  
+  // Prioritize existing categories already in use
+  cleanExisting.forEach(c => set.add(c));
+  // Then add base preset categories
+  baseCategories.forEach(c => set.add(c));
+  // Always provide 'Other'
+  set.add('Other');
+
+  return Array.from(set);
+}
+
+export function getUnitsForBusinessType(businessType?: string | null): string[] {
+  const foundType = getBusinessTypeOption(businessType);
+  if (foundType && foundType.defaultUnits && foundType.defaultUnits.length > 0) {
+    return [...foundType.defaultUnits, 'Piece', 'Other'];
+  }
+  const archetype = getBusinessArchetype(businessType);
+  if (archetype === 'food') {
+    return ['Plate', 'Portion', 'Bowl', 'Cup', 'Bottle', 'Order', 'Serving', 'Piece', 'Other'];
+  }
+  if (archetype === 'service') {
+    return ['Job', 'Session', 'Hour', 'Service', 'Project', 'Day', 'Visit', 'Other'];
+  }
+  return ['Piece', 'Unit', 'Pack', 'Box', 'Carton', 'Bag', 'Set', 'Kg', 'Litre', 'Other'];
+}
 
 export function getBusinessArchetype(businessType?: string | null): BusinessArchetype {
   if (!businessType) return 'retail';

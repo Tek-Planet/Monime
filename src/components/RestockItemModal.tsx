@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +9,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Package, Plus, Minus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useInventory } from "@/hooks/useInventory";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import { useSuppliers } from "@/hooks/useSuppliers";
+import { getCategoriesForBusinessType } from "@/lib/businessArchetypes";
 
 interface RestockItem {
   product: string;
@@ -19,37 +23,43 @@ interface RestockItem {
   total: number;
 }
 
-const products = [
-  "Rice (50kg bag)",
-  "Palm Oil (20L)",
-  "Maggi Cubes",
-  "Milk Powder",
-  "Sugar (50kg)",
-  "Flour (25kg)",
-  "Groundnut Oil",
-  "Biscuits",
-  "Soap",
-  "Detergent",
-];
-
-const categories = ["Food Items", "Beverages", "Personal Care", "Household", "Spices"];
-
-const suppliers = [
-  "Sierra Leone Trading Co.",
-  "West Africa Imports",
-  "Local Farmers Market",
-  "Continental Distributors",
-  "Atlantic Suppliers",
-];
-
 export function RestockItemModal() {
   const { t, locale } = useLanguage();
+  const { business } = useUserProfile();
+  const { inventory } = useInventory(business?.id);
+  const { suppliers } = useSuppliers();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<RestockItem[]>([
     { product: "", category: "", quantity: 1, unitCost: 0, supplier: "", total: 0 },
   ]);
   const [notes, setNotes] = useState("");
   const { toast } = useToast();
+
+  const businessType = business?.business_type;
+
+  const categories = useMemo(() => {
+    const existing = inventory.map(item => item.category);
+    return getCategoriesForBusinessType(businessType, existing);
+  }, [businessType, inventory]);
+
+  const productNames = useMemo(() => {
+    if (inventory.length > 0) {
+      return inventory.map(i => i.name);
+    }
+    return [];
+  }, [inventory]);
+
+  const supplierNames = useMemo(() => {
+    if (suppliers.length > 0) {
+      return suppliers.map(s => s.name);
+    }
+    return [
+      "Standard Direct Distributor",
+      "Regional Wholesale Depot",
+      "Official Brand Importer",
+      "Local Market Partner"
+    ];
+  }, [suppliers]);
 
   const addItem = () => {
     setItems([...items, { product: "", category: "", quantity: 1, unitCost: 0, supplier: "", total: 0 }]);
@@ -65,8 +75,17 @@ export function RestockItemModal() {
     const updatedItems = items.map((item, i) => {
       if (i === index) {
         const updated = { ...item, [field]: value };
+        if (field === "product" && typeof value === "string") {
+          const matchedInv = inventory.find(inv => inv.name === value);
+          if (matchedInv) {
+            if (matchedInv.category) updated.category = matchedInv.category;
+            if (matchedInv.cost_price) updated.unitCost = matchedInv.cost_price;
+            if (matchedInv.supplier) updated.supplier = matchedInv.supplier;
+          }
+        }
         if (field === "quantity" || field === "unitCost") {
-          updated.total = updated.quantity * updated.unitCost;
+          updated.total = (typeof updated.quantity === 'number' ? updated.quantity : 1) * 
+                          (typeof updated.unitCost === 'number' ? updated.unitCost : 0);
         }
         return updated;
       }
@@ -78,7 +97,6 @@ export function RestockItemModal() {
   const totalCost = items.reduce((sum, item) => sum + item.total, 0);
 
   const handleRestock = () => {
-    console.log("Restocking items:", { items, notes, totalCost });
     toast({
       title: t("restock.orderSubmitted"),
       description: `${items.length} ${t("restock.itemsOrdered")} Le ${totalCost.toLocaleString(locale)}`,
@@ -131,18 +149,27 @@ export function RestockItemModal() {
                   <div className="grid grid-cols-1 gap-4">
                     <div>
                       <Label>{t("restock.product")}</Label>
-                      <Select value={item.product} onValueChange={(value) => updateItem(index, "product", value)}>
-                        <SelectTrigger className="h-12 text-base">
-                          <SelectValue placeholder={t("restock.selectProduct")} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {products.map((product) => (
-                            <SelectItem key={product} value={product}>
-                              {product}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      {productNames.length > 0 ? (
+                        <Select value={item.product} onValueChange={(value) => updateItem(index, "product", value)}>
+                          <SelectTrigger className="h-12 text-base">
+                            <SelectValue placeholder={t("restock.selectProduct")} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {productNames.map((product) => (
+                              <SelectItem key={product} value={product}>
+                                {product}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input
+                          value={item.product}
+                          onChange={(e) => updateItem(index, "product", e.target.value)}
+                          placeholder="Enter product or stock item name"
+                          className="h-12 text-base"
+                        />
+                      )}
                     </div>
 
                     <div>
@@ -193,7 +220,7 @@ export function RestockItemModal() {
                           <SelectValue placeholder={t("restock.supplier")} />
                         </SelectTrigger>
                         <SelectContent>
-                          {suppliers.map((supplier) => (
+                          {supplierNames.map((supplier) => (
                             <SelectItem key={supplier} value={supplier}>
                               {supplier}
                             </SelectItem>
@@ -255,7 +282,7 @@ export function RestockItemModal() {
             <Button
               onClick={handleRestock}
               className="order-1 sm:order-2 h-12 text-base"
-              disabled={items.some((item) => !item.product || !item.category || !item.supplier)}
+              disabled={items.some((item) => !item.product || !item.category)}
             >
               {t("restock.submitOrder")}
             </Button>
@@ -265,3 +292,4 @@ export function RestockItemModal() {
     </Dialog>
   );
 }
+

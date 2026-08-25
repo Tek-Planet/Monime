@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,8 +6,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import { Sparkles, Tag, PenTool } from "lucide-react";
 import { useInventory, type InventoryItem, type InventoryFormData } from "@/hooks/useInventory";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import { getCategoriesForBusinessType, getBusinessTypeOption } from "@/lib/businessArchetypes";
 
 interface EditInventoryModalProps {
   item: InventoryItem | null;
@@ -15,26 +19,25 @@ interface EditInventoryModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const categories = [
-  "Staples",
-  "Cooking",
-  "Seasoning",
-  "Sweet",
-  "Beverages",
-  "Dairy",
-  "Meat & Fish",
-  "Vegetables",
-  "Fruits",
-  "Snacks",
-  "Personal Care",
-  "Household",
-  "Other",
-];
-
 export function EditInventoryModal({ item, open, onOpenChange }: EditInventoryModalProps) {
   const { t } = useLanguage();
+  const { business } = useUserProfile();
   const [loading, setLoading] = useState(false);
-  const { updateInventoryItem } = useInventory();
+  const [isCustomCategory, setIsCustomCategory] = useState(false);
+  const [customCategoryInput, setCustomCategoryInput] = useState("");
+  
+  const { inventory, updateInventoryItem } = useInventory(business?.id);
+
+  const businessType = business?.business_type;
+  const businessTypeOption = useMemo(() => getBusinessTypeOption(businessType), [businessType]);
+
+  const categories = useMemo(() => {
+    const existing = inventory.map(i => i.category);
+    if (item?.category) {
+      existing.push(item.category);
+    }
+    return getCategoriesForBusinessType(businessType, existing);
+  }, [businessType, inventory, item?.category]);
 
   const [formData, setFormData] = useState<InventoryFormData>({
     name: "",
@@ -67,6 +70,8 @@ export function EditInventoryModal({ item, open, onOpenChange }: EditInventoryMo
         location: item.location || "",
         is_active: item.is_active ?? true,
       });
+      setIsCustomCategory(false);
+      setCustomCategoryInput("");
     }
   }, [item]);
 
@@ -76,8 +81,13 @@ export function EditInventoryModal({ item, open, onOpenChange }: EditInventoryMo
 
     setLoading(true);
 
+    const finalCategory = isCustomCategory ? customCategoryInput.trim() : formData.category;
+
     try {
-      await updateInventoryItem(item.id, formData);
+      await updateInventoryItem(item.id, {
+        ...formData,
+        category: finalCategory || undefined,
+      });
       onOpenChange(false);
     } catch (error) {
       console.error("Error updating inventory item:", error);
@@ -90,11 +100,30 @@ export function EditInventoryModal({ item, open, onOpenChange }: EditInventoryMo
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handleCategorySelect = (value: string) => {
+    if (value === "__custom__") {
+      setIsCustomCategory(true);
+      setCustomCategoryInput(formData.category || "");
+      updateField("category", "");
+    } else {
+      setIsCustomCategory(false);
+      updateField("category", value);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex flex-col max-w-[90vw] sm:max-w-2xl max-h-[90vh] p-4 md:p-6">
         <DialogHeader className="flex-shrink">
-          <DialogTitle>{t('inventory.editItem')}</DialogTitle>
+          <div className="flex items-center justify-between gap-2">
+            <DialogTitle>{t('inventory.editItem')}</DialogTitle>
+            {businessTypeOption && (
+              <Badge variant="outline" className="text-xs bg-primary/5 text-primary border-primary/20 hidden sm:inline-flex">
+                <Sparkles className="w-3 h-3 mr-1" />
+                {businessTypeOption.label}
+              </Badge>
+            )}
+          </div>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="overflow-y-auto flex-1 space-y-4">
@@ -105,19 +134,57 @@ export function EditInventoryModal({ item, open, onOpenChange }: EditInventoryMo
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="category">{t('inventory.category')}</Label>
-              <Select value={formData.category} onValueChange={(value) => updateField("category", value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t('inventory.selectCategory')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
+              <div className="flex items-center justify-between">
+                <Label htmlFor="category" className="flex items-center gap-1.5">
+                  <Tag className="w-3.5 h-3.5 text-primary" />
+                  {t('inventory.category')}
+                </Label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCustomCategory(!isCustomCategory);
+                    if (!isCustomCategory) {
+                      setCustomCategoryInput(formData.category || "");
+                    }
+                  }}
+                  className="text-xs text-primary hover:underline flex items-center gap-1"
+                >
+                  <PenTool className="w-3 h-3" />
+                  {isCustomCategory ? "Choose from list" : "+ Custom"}
+                </button>
+              </div>
+
+              {isCustomCategory ? (
+                <Input
+                  id="custom-category-edit"
+                  placeholder="Enter custom category name..."
+                  value={customCategoryInput}
+                  onChange={(e) => setCustomCategoryInput(e.target.value)}
+                  autoFocus
+                />
+              ) : (
+                <Select value={formData.category} onValueChange={handleCategorySelect}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={t('inventory.selectCategory')} />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-64">
+                    {businessTypeOption && (
+                      <div className="px-2 py-1.5 text-[11px] font-semibold text-muted-foreground bg-muted/40 rounded-t">
+                        Recommended for {businessTypeOption.label}
+                      </div>
+                    )}
+                    {categories.map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {category}
+                      </SelectItem>
+                    ))}
+                    <div className="border-t my-1" />
+                    <SelectItem value="__custom__" className="text-primary font-medium">
+                      + Add New / Custom Category
                     </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                  </SelectContent>
+                </Select>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -235,3 +302,4 @@ export function EditInventoryModal({ item, open, onOpenChange }: EditInventoryMo
     </Dialog>
   );
 }
+

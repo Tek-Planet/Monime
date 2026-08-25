@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,37 +6,37 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Plus } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Sparkles, Tag, PenTool } from "lucide-react";
 import { useInventory, type InventoryFormData } from "@/hooks/useInventory";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useBranchContext } from "@/contexts/BranchContext";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import { getCategoriesForBusinessType, getBusinessTypeOption } from "@/lib/businessArchetypes";
+
 interface AddInventoryModalProps {
   children?: React.ReactNode;
   onItemAdded?: () => void;
 }
 
-const categories = [
-  "Staples",
-  "Cooking",
-  "Seasoning",
-  "Sweet",
-  "Beverages",
-  "Dairy",
-  "Meat & Fish",
-  "Vegetables",
-  "Fruits",
-  "Snacks",
-  "Personal Care",
-  "Household",
-  "Other",
-];
-
 export function AddInventoryModal({ children, onItemAdded }: AddInventoryModalProps) {
   const { t } = useLanguage();
   const { selectedBranchId } = useBranchContext();
+  const { business } = useUserProfile();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { addInventoryItem } = useInventory();
+  const [isCustomCategory, setIsCustomCategory] = useState(false);
+  const [customCategoryInput, setCustomCategoryInput] = useState("");
+  
+  const { inventory, addInventoryItem } = useInventory(business?.id);
+
+  const businessType = business?.business_type;
+  const businessTypeOption = useMemo(() => getBusinessTypeOption(businessType), [businessType]);
+
+  const categories = useMemo(() => {
+    const existing = inventory.map(item => item.category);
+    return getCategoriesForBusinessType(businessType, existing);
+  }, [businessType, inventory]);
 
   const [formData, setFormData] = useState<InventoryFormData>({
     name: "",
@@ -57,9 +57,12 @@ export function AddInventoryModal({ children, onItemAdded }: AddInventoryModalPr
     e.preventDefault();
     setLoading(true);
 
+    const finalCategory = isCustomCategory ? customCategoryInput.trim() : formData.category;
+
     try {
       await addInventoryItem({
         ...formData,
+        category: finalCategory || undefined,
         branch_id: selectedBranchId || undefined
       });
       setFormData({
@@ -76,6 +79,8 @@ export function AddInventoryModal({ children, onItemAdded }: AddInventoryModalPr
         location: "",
         is_active: true,
       });
+      setIsCustomCategory(false);
+      setCustomCategoryInput("");
       setOpen(false);
       onItemAdded?.();
     } catch (error) {
@@ -87,6 +92,17 @@ export function AddInventoryModal({ children, onItemAdded }: AddInventoryModalPr
 
   const updateField = (field: keyof InventoryFormData, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleCategorySelect = (value: string) => {
+    if (value === "__custom__") {
+      setIsCustomCategory(true);
+      setCustomCategoryInput("");
+      updateField("category", "");
+    } else {
+      setIsCustomCategory(false);
+      updateField("category", value);
+    }
   };
 
   return (
@@ -101,30 +117,82 @@ export function AddInventoryModal({ children, onItemAdded }: AddInventoryModalPr
       </DialogTrigger>
       <DialogContent className="flex flex-col max-w-[90vw] sm:max-w-2xl max-h-[90vh] p-4 md:p-6">
         <DialogHeader className="flex-shrink">
-          <DialogTitle>{t('inventory.addNew')}</DialogTitle>
+          <div className="flex items-center justify-between gap-2">
+            <DialogTitle>{t('inventory.addNew')}</DialogTitle>
+            {businessTypeOption && (
+              <Badge variant="outline" className="text-xs bg-primary/5 text-primary border-primary/20 hidden sm:inline-flex">
+                <Sparkles className="w-3 h-3 mr-1" />
+                {businessTypeOption.label}
+              </Badge>
+            )}
+          </div>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="overflow-y-auto flex-1 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="name">{t('inventory.productName')} *</Label>
-              <Input id="name" value={formData.name} onChange={(e) => updateField("name", e.target.value)} required />
+              <Input 
+                id="name" 
+                value={formData.name} 
+                onChange={(e) => updateField("name", e.target.value)} 
+                placeholder={businessTypeOption?.archetype === 'food' ? "e.g. Fried Rice & Chicken" : businessTypeOption?.archetype === 'service' ? "e.g. Screen Replacement Service" : "e.g. Samsung Fast Charger"}
+                required 
+              />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="category">{t('inventory.category')}</Label>
-              <Select value={formData.category} onValueChange={(value) => updateField("category", value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t('inventory.selectCategory')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
+              <div className="flex items-center justify-between">
+                <Label htmlFor="category" className="flex items-center gap-1.5">
+                  <Tag className="w-3.5 h-3.5 text-primary" />
+                  {t('inventory.category')}
+                </Label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCustomCategory(!isCustomCategory);
+                    if (!isCustomCategory) {
+                      setCustomCategoryInput(formData.category || "");
+                    }
+                  }}
+                  className="text-xs text-primary hover:underline flex items-center gap-1"
+                >
+                  <PenTool className="w-3 h-3" />
+                  {isCustomCategory ? "Choose from list" : "+ Custom"}
+                </button>
+              </div>
+
+              {isCustomCategory ? (
+                <Input
+                  id="custom-category"
+                  placeholder="Enter custom category name..."
+                  value={customCategoryInput}
+                  onChange={(e) => setCustomCategoryInput(e.target.value)}
+                  autoFocus
+                />
+              ) : (
+                <Select value={formData.category} onValueChange={handleCategorySelect}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={t('inventory.selectCategory')} />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-64">
+                    {businessTypeOption && (
+                      <div className="px-2 py-1.5 text-[11px] font-semibold text-muted-foreground bg-muted/40 rounded-t">
+                        Recommended for {businessTypeOption.label}
+                      </div>
+                    )}
+                    {categories.map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {category}
+                      </SelectItem>
+                    ))}
+                    <div className="border-t my-1" />
+                    <SelectItem value="__custom__" className="text-primary font-medium">
+                      + Add New / Custom Category
                     </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                  </SelectContent>
+                </Select>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -242,3 +310,4 @@ export function AddInventoryModal({ children, onItemAdded }: AddInventoryModalPr
     </Dialog>
   );
 }
+
