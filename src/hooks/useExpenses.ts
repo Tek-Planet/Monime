@@ -5,6 +5,8 @@ import { getOrCreateBusinessId } from '@/lib/getOrCreateBusinessId'
 import { useEffect } from 'react'
 import { useBranchContext } from '@/contexts/BranchContext'
 import { fetchAllPages } from '@/lib/fetchAllPages'
+import { offlineDb, type LocalExpense } from '@/lib/offlineDb'
+import { cacheExpenses, recordOfflineExpense } from '@/lib/offlineSyncEngine'
 
 export interface Expense {
   id: string
@@ -20,6 +22,8 @@ export interface Expense {
   notes?: string
   created_at: string
   updated_at: string
+  is_offline?: boolean
+  synced?: boolean
   supplier?: {
     id: string
     name: string
@@ -41,33 +45,143 @@ type MutationContext = {
   previousData: Expense[] | undefined
 }
 
+const getLocalExpenses = async (businessId?: string, branchId?: string | null): Promise<Expense[]> => {
+  try {
+    let localRows = await offlineDb.expenses.toArray();
+    if (businessId) {
+      localRows = localRows.filter(e => e.business_id === businessId);
+    }
+    if (branchId) {
+      localRows = localRows.filter(e => e.branch_id === branchId || !e.branch_id);
+    }
+
+    const suppliers = await offlineDb.suppliers.toArray();
+    const supplierMap = new Map(suppliers.map(s => [s.id, s]));
+
+    const formatted: Expense[] = localRows.map(e => ({
+      id: e.id,
+      user_id: e.user_id || '',
+      business_id: e.business_id,
+      branch_id: e.branch_id || undefined,
+      supplier_id: e.supplier_id || undefined,
+      description: e.description,
+      amount: e.amount,
+      payment_method: e.payment_method,
+      category: e.category || undefined,
+      expense_date: e.expense_date,
+      notes: e.notes || undefined,
+      created_at: e.created_at,
+      updated_at: e.updated_at || e.created_at,
+      is_offline: e.is_offline,
+      synced: e.synced,
+      supplier: e.supplier_id && supplierMap.has(e.supplier_id)
+        ? {
+            id: e.supplier_id,
+            name: supplierMap.get(e.supplier_id)!.name,
+          }
+        : undefined,
+    }));
+
+    return formatted.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  } catch (err) {
+    console.warn('Error reading local Dexie expenses:', err);
+    return [];
+  }
+};
+
 const fetchExpensesData = async (businessId?: string, branchId?: string | null): Promise<Expense[]> => {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    return await getLocalExpenses(businessId, branchId);
+  }
+
   const { data: { user } } = await supabase.auth.getUser()
   
   if (!user) {
-    return []
+    return await getLocalExpenses(businessId, branchId);
   }
 
-  const buildQuery = () => {
-    let query = supabase
-      .from('expenses')
-      .select(`
-        *,
-        supplier:suppliers!expenses_supplier_id_fkey(id, name)
-      `)
+  try {
+    const buildQuery = () => {
+      let query = supabase
+        .from('expenses')
+        .select(`
+          *,
+          supplier:suppliers!expenses_supplier_id_fkey(id, name)
+        `)
 
-    if (businessId) {
-      query = query.eq('business_id', businessId)
+      if (businessId) {
+        query = query.eq('business_id', businessId)
+      }
+
+      if (branchId) {
+        query = query.eq('branch_id', branchId)
+      }
+
+      return query.order('created_at', { ascending: false })
     }
 
-    if (branchId) {
-      query = query.eq('branch_id', branchId)
+    const remoteExpenses = await fetchAllPages<Expense>(buildQuery)
+
+    // Cache remote expenses to Dexie
+    cacheExpenses(remoteExpenses.map(e => ({
+      id: e.id,
+      user_id: e.user_id,
+      business_id: e.business_id,
+      branch_id: e.branch_id || null,
+      supplier_id: e.supplier_id || null,
+      description: e.description,
+      amount: e.amount,
+      payment_method: e.payment_method,
+      category: e.category || null,
+      expense_date: e.expense_date,
+      notes: e.notes || null,
+      created_at: e.created_at,
+      updated_at: e.updated_at,
+      synced: true,
+      is_offline: false,
+    }))).catch(() => {});
+
+    // Check for pending unsynced offline expenses and merge
+    try {
+      const unsynced = await offlineDb.expenses
+        .filter(e => e.synced === false && (businessId ? e.business_id === businessId : true))
+        .toArray();
+
+      if (unsynced.length > 0) {
+        const existingIds = new Set(remoteExpenses.map(e => e.id));
+        const extraOffline: Expense[] = unsynced
+          .filter(e => !existingIds.has(e.id))
+          .map(e => ({
+            id: e.id,
+            user_id: e.user_id || '',
+            business_id: e.business_id,
+            branch_id: e.branch_id || undefined,
+            supplier_id: e.supplier_id || undefined,
+            description: e.description,
+            amount: e.amount,
+            payment_method: e.payment_method,
+            category: e.category || undefined,
+            expense_date: e.expense_date,
+            notes: e.notes || undefined,
+            created_at: e.created_at,
+            updated_at: e.updated_at || e.created_at,
+            is_offline: true,
+            synced: false,
+          }));
+
+        return [...extraOffline, ...remoteExpenses].sort(
+          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+      }
+    } catch {
+      // ignore
     }
 
-    return query.order('created_at', { ascending: false })
+    return remoteExpenses;
+  } catch (error) {
+    console.warn('Network error fetching expenses from Supabase, loading local cache:', error);
+    return await getLocalExpenses(businessId, branchId);
   }
-
-  return await fetchAllPages<Expense>(buildQuery)
 }
 
 export function useExpenses(businessId?: string) {
@@ -104,29 +218,68 @@ export function useExpenses(businessId?: string) {
 
   const createExpenseMutation = useMutation({
     mutationFn: async (expenseData: CreateExpenseData) => {
-      const { data: { user } } = await supabase.auth.getUser()
-      
-      if (!user) {
-        throw new Error('You must be logged in to create expenses')
+      const isDeviceOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+      const { data: { user } } = await supabase.auth.getUser();
+
+      const businessIdToUse = businessId || (user ? await getOrCreateBusinessId(user.id) : null) || 'local-biz';
+
+      if (isDeviceOffline || !user) {
+        const localExpense = await recordOfflineExpense({
+          user_id: user?.id || '',
+          business_id: businessIdToUse,
+          branch_id: expenseData.branch_id || null,
+          supplier_id: expenseData.supplier_id || null,
+          description: expenseData.description,
+          amount: expenseData.amount,
+          payment_method: expenseData.payment_method,
+          category: expenseData.category || null,
+          expense_date: expenseData.expense_date,
+          notes: expenseData.notes || null,
+        });
+
+        return {
+          ...localExpense,
+          is_offline: true,
+          synced: false,
+        } as Expense;
       }
 
-      const businessIdToUse = businessId || await getOrCreateBusinessId(user.id)
-      if (!businessIdToUse) throw new Error('Failed to get business')
+      try {
+        const { data: expense, error } = await supabase
+          .from('expenses')
+          .insert({
+            user_id: user.id,
+            business_id: businessIdToUse,
+            branch_id: expenseData.branch_id || null,
+            expense_date: expenseData.expense_date || new Date().toISOString().split('T')[0],
+            ...expenseData
+          })
+          .select()
+          .single()
 
-      const { data: expense, error } = await supabase
-        .from('expenses')
-        .insert({
+        if (error) throw error
+        return expense
+      } catch (err: any) {
+        console.warn('Network call failed, recording expense offline:', err);
+        const localExpense = await recordOfflineExpense({
           user_id: user.id,
           business_id: businessIdToUse,
           branch_id: expenseData.branch_id || null,
-          expense_date: expenseData.expense_date || new Date().toISOString().split('T')[0],
-          ...expenseData
-        })
-        .select()
-        .single()
+          supplier_id: expenseData.supplier_id || null,
+          description: expenseData.description,
+          amount: expenseData.amount,
+          payment_method: expenseData.payment_method,
+          category: expenseData.category || null,
+          expense_date: expenseData.expense_date,
+          notes: expenseData.notes || null,
+        });
 
-      if (error) throw error
-      return expense
+        return {
+          ...localExpense,
+          is_offline: true,
+          synced: false,
+        } as Expense;
+      }
     },
     onMutate: async (newExpense): Promise<MutationContext> => {
       await queryClient.cancelQueries({ queryKey })
@@ -140,6 +293,8 @@ export function useExpenses(businessId?: string) {
           expense_date: newExpense.expense_date || new Date().toISOString().split('T')[0],
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
+          is_offline: typeof navigator !== 'undefined' && !navigator.onLine,
+          synced: typeof navigator !== 'undefined' ? navigator.onLine : true,
           ...newExpense
         } as Expense,
         ...old
@@ -157,11 +312,18 @@ export function useExpenses(businessId?: string) {
         variant: "destructive"
       })
     },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Expense recorded successfully"
-      })
+    onSuccess: (result) => {
+      if (result && 'is_offline' in result && result.is_offline) {
+        toast({
+          title: "Expense Saved Locally (Offline)",
+          description: "Stored securely on device. It will automatically sync once internet is connected.",
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: "Expense recorded successfully"
+        });
+      }
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey })

@@ -5,6 +5,8 @@ import { getOrCreateBusinessId } from '@/lib/getOrCreateBusinessId'
 import { useEffect } from 'react'
 import { useBranchContext } from '@/contexts/BranchContext'
 import { fetchAllPages } from '@/lib/fetchAllPages'
+import { offlineDb } from '@/lib/offlineDb'
+import { cacheSuppliers } from '@/lib/offlineSyncEngine'
 
 export interface Supplier {
   id: string
@@ -34,30 +36,73 @@ type MutationContext = {
   previousData: Supplier[] | undefined
 }
 
+const getLocalSuppliers = async (businessId?: string): Promise<Supplier[]> => {
+  try {
+    let localRows = await offlineDb.suppliers.toArray();
+    if (businessId) {
+      localRows = localRows.filter(s => s.business_id === businessId);
+    }
+    return localRows.map(s => ({
+      id: s.id,
+      user_id: '',
+      business_id: s.business_id || '',
+      name: s.name,
+      phone: s.phone || undefined,
+      location: undefined,
+      product_category: undefined,
+      notes: undefined,
+      current_balance: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }));
+  } catch {
+    return [];
+  }
+};
+
 const fetchSuppliersData = async (businessId?: string, branchId?: string | null): Promise<Supplier[]> => {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    return await getLocalSuppliers(businessId);
+  }
+
   const { data: { user } } = await supabase.auth.getUser()
   
   if (!user) {
-    return []
+    return await getLocalSuppliers(businessId);
   }
 
-  const buildQuery = () => {
-    let query = supabase
-      .from('suppliers')
-      .select('*')
+  try {
+    const buildQuery = () => {
+      let query = supabase
+        .from('suppliers')
+        .select('*')
 
-    if (businessId) {
-      query = query.eq('business_id', businessId)
+      if (businessId) {
+        query = query.eq('business_id', businessId)
+      }
+
+      if (branchId) {
+        query = query.eq('branch_id', branchId)
+      }
+
+      return query.order('created_at', { ascending: false })
     }
 
-    if (branchId) {
-      query = query.eq('branch_id', branchId)
-    }
+    const remoteSuppliers = await fetchAllPages<Supplier>(buildQuery)
 
-    return query.order('created_at', { ascending: false })
+    // Cache locally
+    cacheSuppliers(remoteSuppliers.map(s => ({
+      id: s.id,
+      business_id: s.business_id,
+      name: s.name,
+      phone: s.phone || null,
+    }))).catch(() => {});
+
+    return remoteSuppliers;
+  } catch (err) {
+    console.warn('Failed to fetch suppliers from network, reading Dexie:', err);
+    return await getLocalSuppliers(businessId);
   }
-
-  return await fetchAllPages<Supplier>(buildQuery)
 }
 
 export function useSuppliers(businessId?: string) {
@@ -126,11 +171,11 @@ export function useSuppliers(businessId?: string) {
           id: 'temp-' + Date.now(),
           user_id: '',
           business_id: '',
-          current_balance: 0,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
+          current_balance: 0,
           ...newSupplier
-        },
+        } as Supplier,
         ...old
       ])
 

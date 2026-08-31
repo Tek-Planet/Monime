@@ -8,6 +8,7 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { BranchProvider } from "@/contexts/BranchContext";
 import { PinLockProvider } from "@/contexts/PinLockContext";
+import { OfflineProvider } from "@/contexts/OfflineContext";
 import { PinLockScreen } from "@/components/PinLockScreen";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PageAccessGuard } from "@/components/PageAccessGuard";
@@ -52,16 +53,17 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <LanguageProvider>
-      <AuthProvider>
+        <AuthProvider>
           <BranchProvider>
-            <PinLockProvider>
-            <PinLockScreen />
-            <UpdateGate />
-            <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-            <Routes>
+            <OfflineProvider>
+              <PinLockProvider>
+                <PinLockScreen />
+                <UpdateGate />
+                <TooltipProvider>
+                <Toaster />
+                <Sonner />
+                <BrowserRouter>
+                <Routes>
               <Route path="/auth" element={<Auth />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/support" element={<Support />} />
@@ -140,6 +142,7 @@ const App = () => (
             </BrowserRouter>
           </TooltipProvider>
           </PinLockProvider>
+          </OfflineProvider>
         </BranchProvider>
       </AuthProvider>
     </LanguageProvider>

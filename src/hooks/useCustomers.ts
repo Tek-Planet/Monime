@@ -6,8 +6,10 @@ import { getOrCreateBusinessId, getBusinessId } from '@/lib/getOrCreateBusinessI
 import { useEffect } from 'react'
 import { useBranchContext } from '@/contexts/BranchContext'
 import { fetchAllPages } from '@/lib/fetchAllPages'
+import { offlineDb, type LocalCustomer } from '@/lib/offlineDb'
+import { cacheCustomers, recordOfflineCustomer } from '@/lib/offlineSyncEngine'
 
-interface Customer {
+export interface Customer {
   id: string
   user_id: string
   business_id: string
@@ -24,7 +26,7 @@ interface Customer {
   updated_at: string
 }
 
-interface CreateCustomerData {
+export interface CreateCustomerData {
   name: string
   email?: string
   phone?: string
@@ -39,6 +41,34 @@ type MutationContext = {
   previousData: Customer[] | undefined
 }
 
+const getLocalCustomers = async (targetBusinessId?: string, branchId?: string | null): Promise<Customer[]> => {
+  try {
+    let localRows = await offlineDb.customers.toArray();
+    if (targetBusinessId) {
+      localRows = localRows.filter(c => c.business_id === targetBusinessId);
+    }
+    if (branchId) {
+      localRows = localRows.filter(c => c.branch_id === branchId || !c.branch_id);
+    }
+
+    return localRows.map(c => ({
+      id: c.id,
+      user_id: '',
+      business_id: c.business_id || '',
+      branch_id: c.branch_id || undefined,
+      name: c.name,
+      email: c.email || undefined,
+      phone: c.phone || undefined,
+      current_balance: 0,
+      created_at: c.created_at || new Date().toISOString(),
+      updated_at: c.created_at || new Date().toISOString(),
+    }));
+  } catch (err) {
+    console.warn('Error reading local Dexie customers:', err);
+    return [];
+  }
+};
+
 export function useCustomers(businessId?: string) {
   const { user } = useAuth()
   const { selectedBranchId, branchResolved, isBusinessOwner, isHqMember } = useBranchContext()
@@ -48,35 +78,58 @@ export function useCustomers(businessId?: string) {
   const { data: customers = [], isLoading: loading, error } = useQuery({
     queryKey: QUERY_KEY,
     queryFn: async (): Promise<Customer[]> => {
-      if (!user) return []
+      const isDeviceOffline = typeof navigator !== 'undefined' && !navigator.onLine;
 
       let targetBusinessId = businessId
-      if (!targetBusinessId) {
+      if (!targetBusinessId && user) {
         targetBusinessId = (await getBusinessId(user.id)) || undefined
       }
+
+      if (isDeviceOffline) {
+        return await getLocalCustomers(targetBusinessId, selectedBranchId);
+      }
+
+      if (!user) return []
       if (!targetBusinessId) return []
 
       const canViewAll = isBusinessOwner || isHqMember || !!businessId;
       
       if (branchResolved && !canViewAll && !selectedBranchId) {
-          console.warn("Data fetch blocked: A non-privileged user must have a branch selected.");
-          return [];
+        return [];
       }
 
-      const buildQuery = () => {
-        let query = supabase
-          .from('customers')
-          .select('*')
-          .eq('business_id', targetBusinessId)
+      try {
+        const buildQuery = () => {
+          let query = supabase
+            .from('customers')
+            .select('*')
+            .eq('business_id', targetBusinessId)
 
-        if (selectedBranchId) {
-          query = query.or(`branch_id.eq.${selectedBranchId},branch_id.is.null`)
+          if (selectedBranchId) {
+            query = query.or(`branch_id.eq.${selectedBranchId},branch_id.is.null`)
+          }
+
+          return query.order('name', { ascending: true })
         }
 
-        return query.order('name', { ascending: true })
-      }
+        const remoteCustomers = await fetchAllPages<Customer>(buildQuery)
 
-      return await fetchAllPages<Customer>(buildQuery)
+        // Cache into Dexie
+        cacheCustomers(remoteCustomers.map(c => ({
+          id: c.id,
+          business_id: c.business_id,
+          branch_id: c.branch_id || null,
+          name: c.name,
+          email: c.email || null,
+          phone: c.phone || null,
+          created_at: c.created_at,
+        }))).catch(() => {});
+
+        return remoteCustomers;
+      } catch (err) {
+        console.warn('Error fetching customers from network, using local Dexie cache:', err);
+        return await getLocalCustomers(targetBusinessId, selectedBranchId);
+      }
     },
     enabled: !!user && branchResolved,
     staleTime: 30 * 1000,
@@ -110,24 +163,61 @@ export function useCustomers(businessId?: string) {
     mutationFn: async (customerData: CreateCustomerData) => {
       if (!user) throw new Error('User not authenticated')
 
-      const businessId = await getOrCreateBusinessId(user.id)
-      
-      if (!businessId) throw new Error('Failed to get business')
+      const isDeviceOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+      const bId = businessId || (await getOrCreateBusinessId(user.id)) || 'local-biz';
 
-      const { data, error } = await supabase
-        .from('customers')
-        .insert([{
+      if (isDeviceOffline) {
+        const localCustomer = await recordOfflineCustomer({
           user_id: user.id,
-          business_id: businessId,
-          // Ensure the branch_id from the modal is used
+          business_id: bId,
           branch_id: customerData.branch_id || selectedBranchId || null,
-          ...customerData
-        }])
-        .select()
-        .single()
+          name: customerData.name,
+          email: customerData.email || null,
+          phone: customerData.phone || null,
+        });
 
-      if (error) throw error
-      return data
+        return {
+          ...localCustomer,
+          user_id: user.id,
+          current_balance: 0,
+          created_at: localCustomer.created_at || new Date().toISOString(),
+          updated_at: localCustomer.created_at || new Date().toISOString(),
+        } as Customer;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('customers')
+          .insert([{
+            user_id: user.id,
+            business_id: bId,
+            branch_id: customerData.branch_id || selectedBranchId || null,
+            ...customerData
+          }])
+          .select()
+          .single()
+
+        if (error) throw error
+        return data
+      } catch (err: any) {
+        console.warn('Network failed when creating customer, saving offline:', err);
+        const localCustomer = await recordOfflineCustomer({
+          user_id: user.id,
+          business_id: bId,
+          branch_id: customerData.branch_id || selectedBranchId || null,
+          name: customerData.name,
+          email: customerData.email || null,
+          phone: customerData.phone || null,
+        });
+
+        return {
+          ...localCustomer,
+          user_id: user.id,
+          current_balance: 0,
+          created_at: localCustomer.created_at || new Date().toISOString(),
+          updated_at: localCustomer.created_at || new Date().toISOString(),
+        } as Customer;
+      }
     },
     onMutate: async (newCustomer): Promise<MutationContext> => {
       await queryClient.cancelQueries({ queryKey: QUERY_KEY })
@@ -157,7 +247,7 @@ export function useCustomers(businessId?: string) {
       toast.error('Failed to create customer')
     },
     onSuccess: () => {
-      toast.success('Customer created successfully')
+      toast.success('Customer saved successfully')
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY })

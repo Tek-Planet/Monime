@@ -12,6 +12,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
 import { BranchSelector } from "@/components/BranchSelector";
+import { OfflineSyncStatus } from "@/components/OfflineSyncStatus";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
@@ -48,6 +49,7 @@ export function TopNavigation() {
 
       {/* Right: actions — uniform icon sizing */}
       <div className="flex items-center gap-1 sm:gap-1.5">
+        <OfflineSyncStatus />
         <BranchSelector />
         <LanguageSwitch />
 

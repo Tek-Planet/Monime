@@ -15,12 +15,14 @@ import { ShoppingCart, Plus, Save, Calculator, User } from "lucide-react";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useSales } from "@/hooks/useSales";
 import { useInventory } from "@/hooks/useInventory";
+import { useCustomers } from "@/hooks/useCustomers";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useBranchContext } from "@/contexts/BranchContext";
 import { getOrCreateBusinessId } from "@/lib/getOrCreateBusinessId";
 import { fetchAllPages } from "@/lib/fetchAllPages";
+import { offlineDb } from "@/lib/offlineDb";
 
 interface Customer {
   id: string;
@@ -83,8 +85,16 @@ export function RecordSaleModal({ onSaleCreated }: { onSaleCreated?: () => void 
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const { createCustomer } = useCustomers();
+
   const fetchCustomers = async () => {
     try {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        const localCustomers = await offlineDb.customers.toArray();
+        setCustomers(localCustomers.map(c => ({ id: c.id, name: c.name, email: c.email || undefined, phone: c.phone || undefined })));
+        return;
+      }
+
       const data = await fetchAllPages<Customer>(() => {
         let query = supabase.from("customers").select("id, name, email, phone");
         if (selectedBranchId) {
@@ -95,6 +105,8 @@ export function RecordSaleModal({ onSaleCreated }: { onSaleCreated?: () => void 
       setCustomers(data || []);
     } catch (error) {
       console.error("Error fetching customers:", error);
+      const localCustomers = await offlineDb.customers.toArray();
+      setCustomers(localCustomers.map(c => ({ id: c.id, name: c.name, email: c.email || undefined, phone: c.phone || undefined })));
     }
   };
 
@@ -182,29 +194,16 @@ export function RecordSaleModal({ onSaleCreated }: { onSaleCreated?: () => void 
 
       // Auto-create customer if a new name was typed
       if (!customerId && customerName.trim() && isNewCustomer) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const businessId = await getOrCreateBusinessId(user.id);
-          if (businessId) {
-            const { data: newCustomer, error: customerError } = await supabase
-              .from("customers")
-              .insert({
-                name: customerName.trim(),
-                user_id: user.id,
-                business_id: businessId,
-                branch_id: selectedBranchId || null,
-              })
-              .select("id")
-              .single();
-
-            if (!customerError && newCustomer) {
-              customerId = newCustomer.id;
-              toast({
-                title: t('modal.success') || "Success",
-                description: `Customer "${customerName.trim()}" created automatically.`,
-              });
-            }
+        try {
+          const newCust = await createCustomer({
+            name: customerName.trim(),
+            branch_id: selectedBranchId || undefined,
+          });
+          if (newCust?.id) {
+            customerId = newCust.id;
           }
+        } catch (custErr) {
+          console.warn("Could not auto-create customer:", custErr);
         }
       }
 
