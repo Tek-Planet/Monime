@@ -37,35 +37,46 @@ export function Dashboard() {
   const archetypeConfig = ARCHETYPE_CONFIGS[archetype]
   const currentTypeOption = BUSINESS_TYPES.find(b => b.value === business?.business_type)
 
+  // Calculate total inventory valuation if totalValue is not exported directly
+  const calculatedInventoryValue = useMemo(() => {
+    if (typeof totalValue === 'number' && !isNaN(totalValue)) return totalValue;
+    return (inventory || []).reduce((sum, item) => {
+      const price = Number(item.unit_price) || 0;
+      const qty = Number(item.stock_quantity) || 0;
+      return sum + (price * qty);
+    }, 0);
+  }, [inventory, totalValue]);
+
   const metrics = useMemo(() => {
     // Calculate total revenue from sales and paid invoices
-    const salesRevenue = sales.reduce((sum, sale) => sum + Number(sale.total_amount), 0)
-    const invoiceRevenue = invoices
+    const salesRevenue = (sales || []).reduce((sum, sale) => sum + (Number(sale.total_amount) || 0), 0)
+    const invoiceRevenue = (invoices || [])
       .filter(invoice => invoice.status === 'paid')
-      .reduce((sum, invoice) => sum + Number(invoice.total_amount), 0)
+      .reduce((sum, invoice) => sum + (Number(invoice.total_amount) || 0), 0)
     const totalRevenue = salesRevenue + invoiceRevenue
     
     // Calculate total pending invoice amount
-    const pendingInvoices = invoices.filter(invoice => invoice.status === 'draft' || invoice.status === 'sent')
-    const pendingInvoiceAmount = pendingInvoices.reduce((sum, invoice) => sum + Number(invoice.total_amount), 0)
+    const pendingInvoices = (invoices || []).filter(invoice => invoice.status === 'draft' || invoice.status === 'sent')
+    const pendingInvoiceAmount = pendingInvoices.reduce((sum, invoice) => sum + (Number(invoice.total_amount) || 0), 0)
 
     // Format currency based on business settings
     const currency = business?.currency || 'SLL'
-    const formatCurrency = (amount: number) => {
+    const formatCurrency = (amount: number | undefined | null) => {
+      const validAmount = typeof amount === 'number' && !isNaN(amount) ? amount : 0;
       if (currency === 'SLL') {
-        return `Le ${amount.toLocaleString()}`
+        return `Le ${validAmount.toLocaleString()}`
       }
-      return `${currency} ${amount.toLocaleString()}`
+      return `${currency} ${validAmount.toLocaleString()}`
     }
 
     if (archetype === 'food') {
       // Restaurant / Eatery / Bakery / Lounge specific metrics
-      const totalOrdersServed = sales.length + invoices.filter(i => i.status === 'paid').length
+      const totalOrdersServed = (sales || []).length + (invoices || []).filter(i => i.status === 'paid').length
       return [
         {
           title: archetypeConfig.metric1Title, // e.g. "Food & Drink Revenue"
           value: formatCurrency(totalRevenue),
-          change: sales.length > 0 ? '+' + ((totalRevenue / sales.length) * 0.1).toFixed(1) + '%' : '0%',
+          change: (sales || []).length > 0 ? '+' + ((totalRevenue / sales.length) * 0.1).toFixed(1) + '%' : '0%',
           trend: 'up' as const,
           icon: LeCurrency,
           period: archetypeConfig.metric1Period
@@ -80,8 +91,8 @@ export function Dashboard() {
         },
         {
           title: archetypeConfig.metric3Title, // e.g. "Menu Items & Stock"
-          value: `${inventory.length} items`,
-          change: formatCurrency(totalValue),
+          value: `${(inventory || []).length} items`,
+          change: formatCurrency(calculatedInventoryValue),
           trend: 'up' as const,
           icon: Package,
           period: archetypeConfig.metric3Period
@@ -99,12 +110,12 @@ export function Dashboard() {
 
     if (archetype === 'service') {
       // Services / Salons / Tailoring / Consulting specific metrics
-      const totalJobsCompleted = sales.length + invoices.filter(i => i.status === 'paid').length
+      const totalJobsCompleted = (sales || []).length + (invoices || []).filter(i => i.status === 'paid').length
       return [
         {
           title: archetypeConfig.metric1Title, // e.g. "Total Service Revenue"
           value: formatCurrency(totalRevenue),
-          change: sales.length > 0 ? '+' + ((totalRevenue / sales.length) * 0.1).toFixed(1) + '%' : '0%',
+          change: (sales || []).length > 0 ? '+' + ((totalRevenue / sales.length) * 0.1).toFixed(1) + '%' : '0%',
           trend: 'up' as const,
           icon: LeCurrency,
           period: archetypeConfig.metric1Period
@@ -119,8 +130,8 @@ export function Dashboard() {
         },
         {
           title: archetypeConfig.metric3Title, // e.g. "Active Clients"
-          value: customers.length.toString(),
-          change: customers.length > 0 ? '+' + Math.round(customers.length * 0.1) : '0',
+          value: (customers || []).length.toString(),
+          change: (customers || []).length > 0 ? '+' + Math.round(customers.length * 0.1) : '0',
           trend: 'up' as const,
           icon: Users,
           period: archetypeConfig.metric3Period
@@ -128,7 +139,7 @@ export function Dashboard() {
         {
           title: archetypeConfig.metric4Title, // e.g. "Outstanding Invoices"
           value: formatCurrency(pendingInvoiceAmount),
-          change: `${pendingInvoices.length} client bills`,
+          change: `${(pendingInvoices || []).length} client bills`,
           trend: pendingInvoiceAmount > 0 ? 'down' as const : 'up' as const,
           icon: CreditCard,
           period: archetypeConfig.metric4Period
@@ -141,23 +152,23 @@ export function Dashboard() {
       {
         title: archetypeConfig.metric1Title, // e.g. "Total Sales Revenue"
         value: formatCurrency(totalRevenue),
-        change: sales.length > 0 ? '+' + ((totalRevenue / sales.length) * 0.1).toFixed(1) + '%' : '0%',
+        change: (sales || []).length > 0 ? '+' + ((totalRevenue / sales.length) * 0.1).toFixed(1) + '%' : '0%',
         trend: 'up' as const,
         icon: LeCurrency,
         period: archetypeConfig.metric1Period
       },
       {
         title: archetypeConfig.metric2Title, // e.g. "Active Shoppers"
-        value: customers.length.toString(),
-        change: customers.length > 0 ? '+' + Math.round(customers.length * 0.1) : '0',
+        value: (customers || []).length.toString(),
+        change: (customers || []).length > 0 ? '+' + Math.round(customers.length * 0.1) : '0',
         trend: 'up' as const,
         icon: Users,
         period: archetypeConfig.metric2Period
       },
       {
         title: archetypeConfig.metric3Title, // e.g. "Inventory Valuation"
-        value: formatCurrency(totalValue),
-        change: `${inventory.length} items`,
+        value: formatCurrency(calculatedInventoryValue),
+        change: `${(inventory || []).length} items`,
         trend: 'up' as const,
         icon: Store,
         period: archetypeConfig.metric3Period
@@ -165,13 +176,13 @@ export function Dashboard() {
       {
         title: archetypeConfig.metric4Title, // e.g. "Pending Store Credits"
         value: formatCurrency(pendingInvoiceAmount),
-        change: `${pendingInvoices.length} invoices`,
+        change: `${(pendingInvoices || []).length} invoices`,
         trend: pendingInvoiceAmount > 0 ? 'down' as const : 'up' as const,
         icon: CreditCard,
         period: archetypeConfig.metric4Period
       },
     ]
-  }, [sales, inventory, invoices, customers, totalValue, business?.currency, business?.business_type, archetype, archetypeConfig, language])
+  }, [sales, inventory, invoices, customers, calculatedInventoryValue, business?.currency, business?.business_type, archetype, archetypeConfig, language])
 
   // Only show loading on initial load (all hooks loading), not on return with cached data
   const isInitialLoading = loading && salesLoading && inventoryLoading && invoicesLoading && customersLoading
