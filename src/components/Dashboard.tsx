@@ -7,6 +7,7 @@ import { RecentTransactions } from './RecentTransactions'
 import { BirthdayReminders } from './BirthdayReminders'
 import { LocationPromptBanner } from './LocationPromptBanner'
 import { MobileQuickAccess } from './MobileQuickAccess'
+import { DashboardAttendanceWidget } from './attendance/DashboardAttendanceWidget'
 import { useUserProfile } from '@/hooks/useUserProfile'
 import { useSales } from '@/hooks/useSales'
 import { useInventory } from '@/hooks/useInventory'
@@ -231,6 +232,9 @@ export function Dashboard() {
 
       {/* Quick Access Module Icons with Archetype Customization */}
       <MobileQuickAccess businessType={business?.business_type} />
+
+      {/* Staff Attendance Live Bar */}
+      <DashboardAttendanceWidget businessId={businessId} />
 
       {/* Enhanced Metrics Grid with Personalized Industry Titles */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-7">

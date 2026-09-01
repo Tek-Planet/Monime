@@ -81,10 +81,32 @@ export interface LocalExpense {
   synced?: boolean;
 }
 
+export interface LocalAttendance {
+  id: string;
+  business_id: string;
+  branch_id?: string | null;
+  user_id: string;
+  staff_name: string;
+  staff_email?: string | null;
+  staff_role?: string | null;
+  clock_in_time: string;
+  clock_out_time?: string | null;
+  total_minutes?: number | null;
+  status: 'on_duty' | 'on_break' | 'completed';
+  clock_in_device_info?: string | null;
+  clock_out_notes?: string | null;
+  break_start_time?: string | null;
+  break_minutes?: number | null;
+  created_at: string;
+  updated_at: string;
+  is_offline?: boolean;
+  synced?: boolean;
+}
+
 export interface OutboxAction {
   queue_id?: number;
   id: string;
-  entity_type: 'sale' | 'expense' | 'customer' | 'inventory_stock';
+  entity_type: 'sale' | 'expense' | 'customer' | 'inventory_stock' | 'attendance';
   action: 'INSERT' | 'UPDATE' | 'DELETE';
   payload: any;
   items_payload?: any[];
@@ -107,6 +129,7 @@ export class MibuksOfflineDB extends Dexie {
   sales!: Table<LocalSale, string>;
   sale_items!: Table<LocalSaleItem, string>;
   expenses!: Table<LocalExpense, string>;
+  attendance!: Table<LocalAttendance, string>;
   outbox!: Table<OutboxAction, number>;
   meta!: Table<LocalMeta, string>;
 
@@ -122,6 +145,10 @@ export class MibuksOfflineDB extends Dexie {
       expenses: 'id, business_id, branch_id, supplier_id, expense_date, created_at, is_offline, synced',
       outbox: '++queue_id, id, entity_type, action, status, created_at, retry_count',
       meta: 'key, updated_at',
+    });
+
+    this.version(2).stores({
+      attendance: 'id, business_id, branch_id, user_id, status, clock_in_time, created_at, is_offline, synced',
     });
   }
 }

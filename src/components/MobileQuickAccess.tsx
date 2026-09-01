@@ -20,11 +20,11 @@ export function MobileQuickAccess({ businessType }: MobileQuickAccessProps) {
         { label: 'Take Orders', icon: Utensils, route: '/sales', color: 'bg-orange-500/10 text-orange-600' },
         { label: 'Menu & Stock', icon: Package, route: '/inventory', color: 'bg-emerald-500/10 text-emerald-600' },
         { label: 'Table Bills', icon: FileText, route: '/invoices', color: 'bg-amber-500/10 text-amber-600' },
+        { label: 'Staff Shifts', icon: Users, route: '/attendance', color: 'bg-indigo-500/10 text-indigo-600' },
         { label: 'Diners', icon: Users, route: '/customers', color: 'bg-violet-500/10 text-violet-600' },
         { label: 'Kitchen Costs', icon: Receipt, route: '/expenses', color: 'bg-red-500/10 text-red-600' },
         { label: 'Food Reports', icon: BarChart3, route: '/reports', color: 'bg-cyan-500/10 text-cyan-600' },
         { label: 'Food Suppliers', icon: Truck, route: '/suppliers', color: 'bg-blue-500/10 text-blue-600' },
-        { label: 'Settings', icon: Settings, route: '/settings', color: 'bg-gray-500/10 text-gray-600' },
       ]
     }
 
@@ -32,12 +32,12 @@ export function MobileQuickAccess({ businessType }: MobileQuickAccessProps) {
       return [
         { label: 'Service Jobs', icon: TrendingUp, route: '/sales', color: 'bg-emerald-500/10 text-emerald-600' },
         { label: 'Client Invoices', icon: FileText, route: '/invoices', color: 'bg-amber-500/10 text-amber-600' },
+        { label: 'Staff Shifts', icon: Users, route: '/attendance', color: 'bg-indigo-500/10 text-indigo-600' },
         { label: 'Client Roster', icon: Users, route: '/customers', color: 'bg-violet-500/10 text-violet-600' },
         { label: 'Service Rates', icon: Briefcase, route: '/inventory', color: 'bg-blue-500/10 text-blue-600' },
         { label: 'Job Expenses', icon: Receipt, route: '/expenses', color: 'bg-red-500/10 text-red-600' },
         { label: 'Performance', icon: BarChart3, route: '/reports', color: 'bg-cyan-500/10 text-cyan-600' },
         { label: 'Vendors', icon: Truck, route: '/suppliers', color: 'bg-orange-500/10 text-orange-600' },
-        { label: 'Settings', icon: Settings, route: '/settings', color: 'bg-gray-500/10 text-gray-600' },
       ]
     }
 
@@ -46,11 +46,11 @@ export function MobileQuickAccess({ businessType }: MobileQuickAccessProps) {
       { label: t('nav.sales'), icon: TrendingUp, route: '/sales', color: 'bg-emerald-500/10 text-emerald-600' },
       { label: t('nav.inventory'), icon: Package, route: '/inventory', color: 'bg-blue-500/10 text-blue-600' },
       { label: t('nav.invoices'), icon: FileText, route: '/invoices', color: 'bg-amber-500/10 text-amber-600' },
+      { label: t('nav.attendance') || 'Attendance', icon: Users, route: '/attendance', color: 'bg-indigo-500/10 text-indigo-600' },
       { label: t('nav.customers'), icon: Users, route: '/customers', color: 'bg-violet-500/10 text-violet-600' },
       { label: t('nav.expenses'), icon: Receipt, route: '/expenses', color: 'bg-red-500/10 text-red-600' },
       { label: t('nav.reports'), icon: BarChart3, route: '/reports', color: 'bg-cyan-500/10 text-cyan-600' },
       { label: t('nav.suppliers'), icon: Truck, route: '/suppliers', color: 'bg-orange-500/10 text-orange-600' },
-      { label: t('nav.settings'), icon: Settings, route: '/settings', color: 'bg-gray-500/10 text-gray-600' },
     ]
   }
 

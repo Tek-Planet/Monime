@@ -22,6 +22,7 @@ const translations = {
     "nav.expenses": "Expenses",
     "nav.suppliers": "Suppliers",
     "nav.reports": "Reports",
+    "nav.attendance": "Attendance",
     "nav.credit": "Credit & Finance",
     "nav.settings": "Settings",
     "nav.mainmenu": "Main Menu",

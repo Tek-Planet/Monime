@@ -23,6 +23,7 @@ const AVAILABLE_PAGES = [
   { value: 'inventory', label: 'Inventory' },
   { value: 'expenses', label: 'Expenses' },
   { value: 'suppliers', label: 'Suppliers' },
+  { value: 'attendance', label: 'Attendance' },
   { value: 'credit', label: 'Credit' },
   { value: 'reports', label: 'Reports' }
 ]

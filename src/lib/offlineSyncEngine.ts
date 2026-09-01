@@ -72,6 +72,95 @@ export async function cacheExpenses(items: LocalExpense[]): Promise<void> {
   }
 }
 
+export async function cacheAttendance(items: any[]): Promise<void> {
+  if (!items || items.length === 0) return;
+  try {
+    await offlineDb.attendance.bulkPut(items.map(a => ({ ...a, synced: true, is_offline: false })));
+  } catch (err) {
+    console.warn('Failed to cache attendance in Dexie:', err);
+  }
+}
+
+export interface OfflineAttendanceInput {
+  business_id: string;
+  branch_id?: string | null;
+  user_id: string;
+  staff_name: string;
+  staff_email?: string | null;
+  staff_role?: string | null;
+  device_info?: string | null;
+  notes?: string | null;
+}
+
+export async function recordOfflineClockIn(input: OfflineAttendanceInput): Promise<any> {
+  const recordId = generateUUID();
+  const now = new Date().toISOString();
+
+  const attendanceRow = {
+    id: recordId,
+    business_id: input.business_id,
+    branch_id: input.branch_id || null,
+    user_id: input.user_id,
+    staff_name: input.staff_name,
+    staff_email: input.staff_email || null,
+    staff_role: input.staff_role || 'staff',
+    clock_in_time: now,
+    status: 'on_duty' as const,
+    clock_in_device_info: input.device_info || 'Offline Web Session',
+    created_at: now,
+    updated_at: now,
+    is_offline: true,
+    synced: false,
+  };
+
+  await offlineDb.attendance.put(attendanceRow);
+
+  await offlineDb.outbox.add({
+    id: recordId,
+    entity_type: 'attendance',
+    action: 'INSERT',
+    payload: attendanceRow,
+    created_at: now,
+    status: 'pending',
+    retry_count: 0,
+  });
+
+  return attendanceRow;
+}
+
+export async function recordOfflineClockOut(recordId: string, notes?: string | null): Promise<void> {
+  const now = new Date().toISOString();
+  const existing = await offlineDb.attendance.get(recordId);
+
+  let totalMinutes = 0;
+  if (existing?.clock_in_time) {
+    const startMs = new Date(existing.clock_in_time).getTime();
+    const endMs = new Date(now).getTime();
+    totalMinutes = Math.max(0, Math.round((endMs - startMs) / 60000));
+  }
+
+  const updatedRow = {
+    clock_out_time: now,
+    status: 'completed' as const,
+    clock_out_notes: notes || null,
+    total_minutes: totalMinutes,
+    updated_at: now,
+    synced: false,
+  };
+
+  await offlineDb.attendance.update(recordId, updatedRow);
+
+  await offlineDb.outbox.add({
+    id: recordId,
+    entity_type: 'attendance',
+    action: 'UPDATE',
+    payload: { id: recordId, ...updatedRow },
+    created_at: now,
+    status: 'pending',
+    retry_count: 0,
+  });
+}
+
 // -------------------------------------------------------------
 // Offline Queue Operations (Local Write -> Outbox)
 // -------------------------------------------------------------
@@ -413,6 +502,44 @@ export async function processOutboxSync(): Promise<SyncResult> {
 
         // Mark local expense as synced
         await offlineDb.expenses.update(expense.id, { synced: true, is_offline: false });
+        await offlineDb.outbox.delete(action.queue_id);
+        successCount++;
+      } else if (action.entity_type === 'attendance') {
+        if (action.action === 'INSERT') {
+          const record = action.payload;
+          const { error: attError } = await supabase.from('staff_attendance' as any).insert({
+            id: record.id,
+            business_id: record.business_id,
+            branch_id: record.branch_id || null,
+            user_id: record.user_id,
+            staff_name: record.staff_name,
+            staff_email: record.staff_email || null,
+            staff_role: record.staff_role || 'staff',
+            clock_in_time: record.clock_in_time,
+            status: record.status || 'on_duty',
+            clock_in_device_info: record.clock_in_device_info || null,
+            created_at: record.created_at,
+          });
+
+          if (attError && attError.code !== '23505' && attError.code !== '42P01') {
+            throw attError;
+          }
+        } else if (action.action === 'UPDATE') {
+          const record = action.payload;
+          const { error: attError } = await supabase.from('staff_attendance' as any).update({
+            clock_out_time: record.clock_out_time,
+            status: record.status,
+            clock_out_notes: record.clock_out_notes || null,
+            total_minutes: record.total_minutes || null,
+            updated_at: record.updated_at,
+          }).eq('id', record.id);
+
+          if (attError && attError.code !== '42P01') {
+            throw attError;
+          }
+        }
+
+        await offlineDb.attendance.update(action.id, { synced: true, is_offline: false });
         await offlineDb.outbox.delete(action.queue_id);
         successCount++;
       } else {

@@ -43,6 +43,7 @@ import AdminSubscriptions from "./pages/admin/Subscriptions";
 import AdminMarketers from "./pages/admin/Marketers";
 import Privacy from "./pages/Privacy";
 import Support from "./pages/Support";
+import AttendancePage from "./pages/Attendance";
 import Setup from "./pages/Setup";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentFailure from "./pages/PaymentFailure";
@@ -112,6 +113,11 @@ const App = () => (
                 <Route path="reports" element={
                   <PageAccessGuard pageKey="reports">
                     <Reports />
+                  </PageAccessGuard>
+                } />
+                <Route path="attendance" element={
+                  <PageAccessGuard pageKey="attendance">
+                    <AttendancePage />
                   </PageAccessGuard>
                 } />
                 <Route path="settings" element={<SettingsPage />} />

@@ -15,6 +15,7 @@ const PREMIUM_PAGES = [
   "suppliers",
   "expenses",
   "reports",
+  "attendance",
   "credit",
 ];
 

@@ -1,4 +1,4 @@
-import { LayoutDashboard, FileText, Users, Package, TrendingUp, CreditCard, BarChart3, Settings, Truck, Receipt, Shield, UserCog, Building2, Activity, PieChart, Wallet, Crown, Megaphone } from 'lucide-react'
+import { LayoutDashboard, FileText, Users, Package, TrendingUp, CreditCard, BarChart3, Settings, Truck, Receipt, Shield, UserCog, Building2, Activity, PieChart, Wallet, Crown, Megaphone, Clock } from 'lucide-react'
 import { NavLink, useLocation } from 'react-router-dom'
 import {
   Sidebar,
@@ -29,6 +29,7 @@ const PAGE_ROUTE_MAP: Record<string, string> = {
   'expenses': '/expenses',
   'credit': '/credit',
   'reports': '/reports',
+  'attendance': '/attendance',
   'settings': '/settings'
 }
 
@@ -40,6 +41,7 @@ const getMenuItems = (t: (key: string) => string) => [
   { title: t('nav.inventory'), url: '/inventory', icon: Package, pageKey: 'inventory' },
   { title: t('nav.suppliers'), url: '/suppliers', icon: Truck, pageKey: 'suppliers' },
   { title: t('nav.expenses'), url: '/expenses', icon: Receipt, pageKey: 'expenses' },
+  { title: t('nav.attendance') || 'Attendance', url: '/attendance', icon: Clock, pageKey: 'attendance' },
   // { title: t('nav.credit'), url: '/credit', icon: CreditCard, pageKey: 'credit' },
   { title: t('nav.reports'), url: '/reports', icon: BarChart3, pageKey: 'reports' },
   { title: t('nav.settings'), url: '/settings', icon: Settings, pageKey: 'settings' },
