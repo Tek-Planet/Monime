@@ -204,7 +204,7 @@ const Inventory = () => {
               <TrendingUp className="h-5 w-5 text-prosperity-green" />
               <span className="text-sm font-medium">{t("inventory.totalValue")}</span>
             </div>
-            <div className="text-2xl font-bold mt-2">Le {totalValue.toLocaleString()}</div>
+            <div className="text-2xl font-bold mt-2">Le {(totalValue || 0).toLocaleString()}</div>
           </CardContent>
         </Card>
 
@@ -214,7 +214,7 @@ const Inventory = () => {
               <AlertTriangle className="h-5 w-5 text-warning" />
               <span className="text-sm font-medium">{t("inventory.lowStock")}</span>
             </div>
-            <div className="text-2xl font-bold mt-2 text-warning">{lowItems}</div>
+            <div className="text-2xl font-bold mt-2 text-warning">{lowItems || 0}</div>
           </CardContent>
         </Card>
 
@@ -224,7 +224,7 @@ const Inventory = () => {
               <X className="h-5 w-5 text-destructive" />
               <span className="text-sm font-medium">{t("inventory.outOfStock")}</span>
             </div>
-            <div className="text-2xl font-bold mt-2 text-destructive">{outOfStockItems}</div>
+            <div className="text-2xl font-bold mt-2 text-destructive">{outOfStockItems || 0}</div>
           </CardContent>
         </Card>
       </div>
@@ -336,7 +336,7 @@ const Inventory = () => {
                           )}
                         </div>
                         <p className="text-xs sm:text-sm text-muted-foreground">
-                          {item.category} • Le {item.unit_price.toLocaleString()}
+                          {item.category ? `${item.category} • ` : ""}Le {(item.unit_price || 0).toLocaleString()}
                           {item.sku && ` • SKU: ${item.sku}`}
                           {profitMargin && (
                             <span

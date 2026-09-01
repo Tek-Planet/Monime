@@ -112,12 +112,12 @@ export function ViewInventoryModal({
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
                 <span className="text-muted-foreground">Unit Price:</span>
-                <span className="ml-2 font-semibold">Le {item.unit_price.toLocaleString()}</span>
+                <span className="ml-2 font-semibold">Le {(item.unit_price || 0).toLocaleString()}</span>
               </div>
               <div>
                 <span className="text-muted-foreground">Cost Price:</span>
                 <span className="ml-2 font-semibold">
-                  {item.cost_price ? `Le ${item.cost_price.toLocaleString()}` : 'N/A'}
+                  {item.cost_price ? `Le ${(item.cost_price || 0).toLocaleString()}` : 'N/A'}
                 </span>
               </div>
               {profitMargin && (
@@ -131,7 +131,7 @@ export function ViewInventoryModal({
               <div>
                 <span className="text-muted-foreground">Stock Value:</span>
                 <span className="ml-2 font-semibold">
-                  Le {(item.stock_quantity * item.unit_price).toLocaleString()}
+                  Le {((item.stock_quantity || 0) * (item.unit_price || 0)).toLocaleString()}
                 </span>
               </div>
             </div>

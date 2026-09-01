@@ -414,15 +414,107 @@ export function useInventory(businessId?: string) {
     }
   })
 
+  // Compute inventory metrics and stock statuses
+  const getStockStatus = (item: InventoryItem): 'good' | 'low' | 'critical' | 'out' => {
+    const qty = Number(item.stock_quantity) || 0;
+    if (qty <= 0) return 'out';
+    const minLevel = Number(item.min_stock_level) || 10;
+    if (qty <= Math.ceil(minLevel / 2)) return 'critical';
+    if (qty <= minLevel) return 'low';
+    return 'good';
+  };
+
+  const { criticalItems, lowItems, outOfStockItems, totalValue, totalCostValue } = useMemo(() => {
+    let critical = 0;
+    let low = 0;
+    let out = 0;
+    let val = 0;
+    let cost = 0;
+
+    for (const item of inventory) {
+      const qty = Number(item.stock_quantity) || 0;
+      const price = Number(item.unit_price) || 0;
+      const costPrice = Number(item.cost_price) || 0;
+
+      val += qty * price;
+      cost += qty * costPrice;
+
+      const status = getStockStatus(item);
+      if (status === 'out') out++;
+      else if (status === 'critical') critical++;
+      else if (status === 'low') low++;
+    }
+
+    return {
+      criticalItems: critical,
+      lowItems: low,
+      outOfStockItems: out,
+      totalValue: val,
+      totalCostValue: cost,
+    };
+  }, [inventory]);
+
+  const updateStockMutation = useMutation({
+    mutationFn: async ({ id, newQuantity }: { id: string; newQuantity: number }) => {
+      if (!user) throw new Error('User not found');
+      const isDeviceOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+      if (isDeviceOffline) {
+        await offlineDb.inventory.update(id, { stock_quantity: newQuantity, updated_at: new Date().toISOString() });
+        return;
+      }
+
+      const { error } = await supabase
+        .from('inventory')
+        .update({ stock_quantity: newQuantity, updated_at: new Date().toISOString() })
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onMutate: async ({ id, newQuantity }): Promise<MutationContext> => {
+      await queryClient.cancelQueries({ queryKey: QUERY_KEY });
+      const previousData = queryClient.getQueryData<InventoryItem[]>(QUERY_KEY);
+
+      queryClient.setQueryData<InventoryItem[]>(QUERY_KEY, (old = []) =>
+        old.map(item =>
+          item.id === id ? { ...item, stock_quantity: newQuantity, updated_at: new Date().toISOString() } : item
+        )
+      );
+
+      return { previousData };
+    },
+    onError: (error, _vars, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(QUERY_KEY, context.previousData);
+      }
+      console.error('Error updating stock quantity:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update stock quantity',
+        variant: 'destructive',
+      });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+    },
+  });
+
   return {
     inventory,
     loading,
+    criticalItems,
+    lowItems,
+    outOfStockItems,
+    totalValue,
+    totalCostValue,
+    getStockStatus,
     addInventoryItem: (data: InventoryFormData) => addInventoryItemMutation.mutateAsync(data),
     updateInventoryItem: (id: string, updates: Partial<InventoryFormData>) => 
       updateInventoryItemMutation.mutateAsync({ id, updates }),
     deleteInventoryItem: (id: string) => deleteInventoryItemMutation.mutateAsync(id),
+    updateStock: (id: string, newQuantity: number) => updateStockMutation.mutateAsync({ id, newQuantity }),
     adjustStock: (id: string, quantity: number, type: 'add' | 'subtract') =>
       adjustStockMutation.mutateAsync({ id, quantity, type }),
+    fetchInventory: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
     refetch: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY })
   }
 }
