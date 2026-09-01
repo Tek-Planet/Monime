@@ -16,7 +16,7 @@ import { format } from 'date-fns';
 export function ClockInOutCard() {
   const { profile, business } = useUserProfile();
   const { user } = useAuth();
-  const { selectedBranchId, branches } = useBranchContext();
+  const { selectedBranchId, allBranches, accessibleBranches } = useBranchContext();
   const { t } = useLanguage();
 
   const businessId = business?.id;
@@ -80,7 +80,7 @@ export function ClockInOutCard() {
 
     clockIn({
       business_id: businessId,
-      branch_id: selectedBranchId !== 'all' ? selectedBranchId : null,
+      branch_id: selectedBranchId && selectedBranchId !== 'all' ? selectedBranchId : null,
       user_id: user.id,
       staff_name: staffName,
       staff_email: user.email,
@@ -100,8 +100,9 @@ export function ClockInOutCard() {
     setClockOutNotes('');
   };
 
+  const branchList = allBranches || accessibleBranches || [];
   const currentBranchName =
-    branches.find((b) => b.id === (activeUserSession?.branch_id || selectedBranchId))?.name ||
+    branchList.find((b) => b?.id === (activeUserSession?.branch_id || selectedBranchId))?.name ||
     'Main Office';
 
   return (

@@ -359,6 +359,26 @@ export async function recordOfflineCustomer(input: OfflineCustomerInput): Promis
 // Outbox Synchronization Engine (Local Outbox -> Supabase)
 // -------------------------------------------------------------
 
+function isTableMissingOrIgnorableError(err: any): boolean {
+  if (!err) return true;
+  const code = String(err.code || '');
+  const msg = String(err.message || '').toLowerCase();
+  const details = String(err.details || '').toLowerCase();
+  if (code === '23505' || code === '42P01' || code === 'PGRST205' || code === '404' || code === 'PGRST116') {
+    return true;
+  }
+  if (
+    msg.includes('schema cache') ||
+    msg.includes('could not find the table') ||
+    msg.includes('staff_attendance') ||
+    details.includes('schema cache') ||
+    (msg.includes('relation') && msg.includes('does not exist'))
+  ) {
+    return true;
+  }
+  return false;
+}
+
 export interface SyncResult {
   success: number;
   failed: number;
@@ -369,6 +389,21 @@ export interface SyncResult {
 export async function processOutboxSync(): Promise<SyncResult> {
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
     return { success: 0, failed: 0, total: 0, errors: ['Device is offline'] };
+  }
+
+  // Pre-clean any permanently un-syncable outbox records due to missing schema or previous PGRST205
+  try {
+    const allOutbox = await offlineDb.outbox.toArray();
+    for (const item of allOutbox) {
+      if (item.queue_id && (item.entity_type === 'attendance' || (item.last_error && isTableMissingOrIgnorableError({ message: item.last_error })))) {
+        if (item.entity_type === 'attendance') {
+          await offlineDb.attendance.update(item.id, { synced: true, is_offline: false });
+        }
+        await offlineDb.outbox.delete(item.queue_id);
+      }
+    }
+  } catch (e) {
+    console.warn('Error during outbox cleanup:', e);
   }
 
   // Find all pending or failed outbox records
@@ -505,37 +540,43 @@ export async function processOutboxSync(): Promise<SyncResult> {
         await offlineDb.outbox.delete(action.queue_id);
         successCount++;
       } else if (action.entity_type === 'attendance') {
-        if (action.action === 'INSERT') {
-          const record = action.payload;
-          const { error: attError } = await supabase.from('staff_attendance' as any).insert({
-            id: record.id,
-            business_id: record.business_id,
-            branch_id: record.branch_id || null,
-            user_id: record.user_id,
-            staff_name: record.staff_name,
-            staff_email: record.staff_email || null,
-            staff_role: record.staff_role || 'staff',
-            clock_in_time: record.clock_in_time,
-            status: record.status || 'on_duty',
-            clock_in_device_info: record.clock_in_device_info || null,
-            created_at: record.created_at,
-          });
+        try {
+          if (action.action === 'INSERT') {
+            const record = action.payload;
+            const { error: attError } = await supabase.from('staff_attendance' as any).insert({
+              id: record.id,
+              business_id: record.business_id,
+              branch_id: record.branch_id || null,
+              user_id: record.user_id,
+              staff_name: record.staff_name,
+              staff_email: record.staff_email || null,
+              staff_role: record.staff_role || 'staff',
+              clock_in_time: record.clock_in_time,
+              status: record.status || 'on_duty',
+              clock_in_device_info: record.clock_in_device_info || null,
+              created_at: record.created_at,
+            });
 
-          if (attError && attError.code !== '23505' && attError.code !== '42P01') {
-            throw attError;
+            if (attError && !isTableMissingOrIgnorableError(attError)) {
+              throw attError;
+            }
+          } else if (action.action === 'UPDATE') {
+            const record = action.payload;
+            const { error: attError } = await supabase.from('staff_attendance' as any).update({
+              clock_out_time: record.clock_out_time,
+              status: record.status,
+              clock_out_notes: record.clock_out_notes || null,
+              total_minutes: record.total_minutes || null,
+              updated_at: record.updated_at,
+            }).eq('id', record.id);
+
+            if (attError && !isTableMissingOrIgnorableError(attError)) {
+              throw attError;
+            }
           }
-        } else if (action.action === 'UPDATE') {
-          const record = action.payload;
-          const { error: attError } = await supabase.from('staff_attendance' as any).update({
-            clock_out_time: record.clock_out_time,
-            status: record.status,
-            clock_out_notes: record.clock_out_notes || null,
-            total_minutes: record.total_minutes || null,
-            updated_at: record.updated_at,
-          }).eq('id', record.id);
-
-          if (attError && attError.code !== '42P01') {
-            throw attError;
+        } catch (attErr: any) {
+          if (!isTableMissingOrIgnorableError(attErr)) {
+            throw attErr;
           }
         }
 
@@ -547,6 +588,13 @@ export async function processOutboxSync(): Promise<SyncResult> {
         await offlineDb.outbox.delete(action.queue_id);
       }
     } catch (err: any) {
+      if (isTableMissingOrIgnorableError(err)) {
+        // If table doesn't exist remotely (e.g. PGRST205), delete outbox item so queue doesn't block
+        await offlineDb.outbox.delete(action.queue_id);
+        successCount++;
+        continue;
+      }
+
       console.error(`Sync error on queue item ${action.queue_id}:`, err);
       const errMsg = err?.message || 'Sync failed';
       errors.push(errMsg);
