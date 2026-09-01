@@ -370,7 +370,6 @@ function isTableMissingOrIgnorableError(err: any): boolean {
   if (
     msg.includes('schema cache') ||
     msg.includes('could not find the table') ||
-    msg.includes('staff_attendance') ||
     details.includes('schema cache') ||
     (msg.includes('relation') && msg.includes('does not exist'))
   ) {
@@ -391,19 +390,25 @@ export async function processOutboxSync(): Promise<SyncResult> {
     return { success: 0, failed: 0, total: 0, errors: ['Device is offline'] };
   }
 
-  // Pre-clean any permanently un-syncable outbox records due to missing schema or previous PGRST205
+  // Ensure any un-synced attendance records in Dexie have outbox queue items
   try {
-    const allOutbox = await offlineDb.outbox.toArray();
-    for (const item of allOutbox) {
-      if (item.queue_id && (item.entity_type === 'attendance' || (item.last_error && isTableMissingOrIgnorableError({ message: item.last_error })))) {
-        if (item.entity_type === 'attendance') {
-          await offlineDb.attendance.update(item.id, { synced: true, is_offline: false });
-        }
-        await offlineDb.outbox.delete(item.queue_id);
+    const unsyncedAttendance = await offlineDb.attendance.where('synced').equals(0 as any).toArray();
+    for (const att of unsyncedAttendance) {
+      const existingOutbox = await offlineDb.outbox.where('id').equals(att.id).first();
+      if (!existingOutbox) {
+        await offlineDb.outbox.add({
+          id: att.id,
+          entity_type: 'attendance',
+          action: att.clock_out_time ? 'UPDATE' : 'INSERT',
+          payload: att,
+          created_at: att.updated_at || att.created_at || new Date().toISOString(),
+          status: 'pending',
+          retry_count: 0,
+        });
       }
     }
   } catch (e) {
-    console.warn('Error during outbox cleanup:', e);
+    console.warn('Error checking unsynced attendance:', e);
   }
 
   // Find all pending or failed outbox records
@@ -543,7 +548,7 @@ export async function processOutboxSync(): Promise<SyncResult> {
         try {
           if (action.action === 'INSERT') {
             const record = action.payload;
-            const { error: attError } = await supabase.from('staff_attendance' as any).insert({
+            const { error: attError } = await supabase.from('staff_attendance' as any).upsert({
               id: record.id,
               business_id: record.business_id,
               branch_id: record.branch_id || null,
@@ -552,9 +557,13 @@ export async function processOutboxSync(): Promise<SyncResult> {
               staff_email: record.staff_email || null,
               staff_role: record.staff_role || 'staff',
               clock_in_time: record.clock_in_time,
+              clock_out_time: record.clock_out_time || null,
               status: record.status || 'on_duty',
               clock_in_device_info: record.clock_in_device_info || null,
+              clock_out_notes: record.clock_out_notes || null,
+              total_minutes: record.total_minutes || null,
               created_at: record.created_at,
+              updated_at: record.updated_at || record.created_at,
             });
 
             if (attError && !isTableMissingOrIgnorableError(attError)) {

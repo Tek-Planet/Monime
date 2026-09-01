@@ -1,18 +1,28 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBranchContext } from "@/contexts/BranchContext";
 import { useOffline } from "@/contexts/OfflineContext";
 import { offlineDb } from "@/lib/offlineDb";
-import { recordOfflineClockIn, recordOfflineClockOut, cacheAttendance } from "@/lib/offlineSyncEngine";
+import { recordOfflineClockIn, recordOfflineClockOut, cacheAttendance, processOutboxSync } from "@/lib/offlineSyncEngine";
 import { toast } from "sonner";
 import type { AttendanceRecord, AttendanceSummary, ClockInPayload, ClockOutPayload, BreakActionPayload } from "@/types/attendance";
 
 export function useAttendance(businessId?: string) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const { selectedBranchId } = useBranchContext();
+  const { selectedBranchId, allBranches, accessibleBranches } = useBranchContext();
   const { isOnline } = useOffline();
+
+  const branchList = allBranches || accessibleBranches || [];
+
+  // Periodically process any pending offline outbox records when online
+  useEffect(() => {
+    if (isOnline && businessId) {
+      processOutboxSync().catch((e) => console.warn("Background attendance sync check failed:", e));
+    }
+  }, [isOnline, businessId]);
 
   // Query: Fetch all attendance records for the current business & branch filter
   const {
@@ -30,30 +40,7 @@ export function useAttendance(businessId?: string) {
         try {
           let query = supabase
             .from("staff_attendance" as any)
-            .select(`
-              id,
-              business_id,
-              branch_id,
-              user_id,
-              staff_name,
-              staff_email,
-              staff_role,
-              clock_in_time,
-              clock_out_time,
-              total_minutes,
-              status,
-              clock_in_device_info,
-              clock_out_notes,
-              break_start_time,
-              break_minutes,
-              verified_by,
-              created_at,
-              updated_at,
-              branches:branch_id (
-                id,
-                name
-              )
-            `)
+            .select("*")
             .eq("business_id", businessId)
             .order("clock_in_time", { ascending: false });
 
@@ -64,15 +51,17 @@ export function useAttendance(businessId?: string) {
           const { data, error } = await query;
 
           if (error) {
-            // If table doesn't exist yet in remote Supabase or fails, fallback to offline DB
-            console.warn("Could not query remote staff_attendance, falling back to local:", error.message);
+            console.warn("Could not query remote staff_attendance, falling back to local cache:", error.message);
           } else if (data) {
-            remoteRecords = (data as any[]).map((r) => ({
-              ...r,
-              branch: Array.isArray(r.branches) ? r.branches[0] : r.branches,
-              is_offline: false,
-              synced: true,
-            }));
+            remoteRecords = (data as any[]).map((r) => {
+              const matchedBranch = branchList.find((b) => b?.id === r.branch_id);
+              return {
+                ...r,
+                branch: matchedBranch ? { id: matchedBranch.id, name: matchedBranch.branch_name } : (r.branch || null),
+                is_offline: false,
+                synced: true,
+              };
+            });
             // Cache to local Dexie
             await cacheAttendance(remoteRecords);
           }
@@ -90,16 +79,21 @@ export function useAttendance(businessId?: string) {
           localRecords = localRecords.filter((r) => r.branch_id === selectedBranchId);
         }
 
-        // Merge remote and local (local unsynced entries take priority)
+        // Merge remote and local (unsynced local entries take priority, otherwise remote is authoritative)
         const recordMap = new Map<string, AttendanceRecord>();
 
         remoteRecords.forEach((r) => recordMap.set(r.id, r));
         localRecords.forEach((loc) => {
-          recordMap.set(loc.id, {
-            ...loc,
-            is_offline: loc.is_offline ?? false,
-            synced: loc.synced ?? true,
-          } as AttendanceRecord);
+          const matchedBranch = branchList.find((b) => b?.id === loc.branch_id);
+          const isUnsynced = loc.synced === false || loc.is_offline;
+          if (isUnsynced || !recordMap.has(loc.id)) {
+            recordMap.set(loc.id, {
+              ...loc,
+              branch: loc.branch || (matchedBranch ? { id: matchedBranch.id, name: matchedBranch.branch_name } : null),
+              is_offline: loc.is_offline ?? false,
+              synced: loc.synced ?? true,
+            } as AttendanceRecord);
+          }
         });
 
         const merged = Array.from(recordMap.values()).sort(
@@ -112,7 +106,7 @@ export function useAttendance(businessId?: string) {
       }
     },
     enabled: !!businessId,
-    staleTime: 1000 * 30, // 30 seconds
+    staleTime: 1000 * 15, // 15 seconds
   });
 
   // Active session for the currently logged in user
