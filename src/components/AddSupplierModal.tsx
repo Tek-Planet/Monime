@@ -16,9 +16,13 @@ import { useState } from "react";
 import { useSuppliers } from "@/hooks/useSuppliers";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useBranchContext } from "@/contexts/BranchContext";
+import { useOffline } from "@/contexts/OfflineContext";
+import { OfflineFormBanner } from "@/components/OfflineFormBanner";
+
 export function AddSupplierModal() {
   const { t } = useLanguage();
   const { selectedBranchId } = useBranchContext();
+  const { isOnline } = useOffline();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [supplierData, setSupplierData] = useState({
@@ -78,6 +82,8 @@ export function AddSupplierModal() {
             {t('supplier.addToManage')}
           </DialogDescription>
         </DialogHeader>
+
+        <OfflineFormBanner moduleName="supplier" />
 
         <div className="overflow-y-auto flex-1 space-y-4">
           <div>
@@ -152,7 +158,7 @@ export function AddSupplierModal() {
             </Button>
             <Button variant="gradient" onClick={handleSave} disabled={loading || !supplierData.name.trim()} className="flex-1">
               <Save className="h-4 w-4" />
-              {loading ? t('modal.saving') : t('supplier.saveSupplier')}
+              {loading ? (isOnline ? t('modal.saving') : "Saving Offline...") : (!isOnline ? "Save Supplier (Offline)" : t('supplier.saveSupplier'))}
             </Button>
           </div>
         </div>

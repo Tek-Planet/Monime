@@ -10,6 +10,8 @@ import { Package, Plus, Minus } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useInventory, type InventoryItem } from "@/hooks/useInventory"
 import { useSuppliers } from "@/hooks/useSuppliers"
+import { useOffline } from "@/contexts/OfflineContext"
+import { OfflineFormBanner } from "@/components/OfflineFormBanner"
 
 interface RestockItemData {
   inventoryId: string
@@ -27,6 +29,7 @@ interface RestockModalProps {
 
 export function RestockModal({ children, onRestockComplete }: RestockModalProps) {
   const [open, setOpen] = useState(false)
+  const { isOnline } = useOffline()
   const [items, setItems] = useState<RestockItemData[]>([
     { inventoryId: "", productName: "", quantity: 1, unitCost: 0, supplierId: "", total: 0 },
   ])
@@ -93,10 +96,17 @@ export function RestockModal({ children, onRestockComplete }: RestockModalProps)
         }
       }
 
-      toast({
-        title: "Restock Complete",
-        description: `${items.length} product(s) restocked with ${totalQuantity} total units`,
-      })
+      if (!isOnline) {
+        toast({
+          title: "Restock Saved Locally (Offline)",
+          description: `${items.length} product(s) stock updated locally. Will automatically sync to server when online.`,
+        })
+      } else {
+        toast({
+          title: "Restock Complete",
+          description: `${items.length} product(s) restocked with ${totalQuantity} total units`,
+        })
+      }
       
       setOpen(false)
       setItems([{ inventoryId: "", productName: "", quantity: 1, unitCost: 0, supplierId: "", total: 0 }])
@@ -133,6 +143,8 @@ export function RestockModal({ children, onRestockComplete }: RestockModalProps)
             Restock Inventory
           </DialogTitle>
         </DialogHeader>
+
+        <OfflineFormBanner moduleName="restock" />
 
         <div className="space-y-4">
           {/* Items List */}
@@ -274,7 +286,7 @@ export function RestockModal({ children, onRestockComplete }: RestockModalProps)
               className="flex-1"
               disabled={!isValid || loading}
             >
-              {loading ? "Processing..." : "Complete Restock"}
+              {loading ? (isOnline ? "Processing..." : "Saving Offline...") : (!isOnline ? "Restock (Offline)" : "Complete Restock")}
             </Button>
           </div>
         </div>

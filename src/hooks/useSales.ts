@@ -7,7 +7,7 @@ import { useBranchContext } from '@/contexts/BranchContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { fetchAllPages } from '@/lib/fetchAllPages'
 import { offlineDb, type LocalSale } from '@/lib/offlineDb'
-import { cacheSales, recordOfflineSale } from '@/lib/offlineSyncEngine'
+import { cacheSales, recordOfflineSale, withNetworkTimeout } from '@/lib/offlineSyncEngine'
 
 export interface Sale {
   id: string
@@ -275,64 +275,68 @@ export function useSales(businessId?: string) {
       }
 
       try {
-        const { data: sale, error } = await supabase
-          .from('sales')
-          .insert({
-            user_id: user.id,
-            business_id: bId,
-            branch_id: saleData.branch_id || null,
-            customer_id: saleData.customer_id,
-            invoice_id: saleData.invoice_id,
-            sale_date: saleData.sale_date || new Date().toISOString().split('T')[0],
-            total_amount: saleData.total_amount,
-            payment_method: saleData.payment_method,
-            notes: saleData.notes
-          })
-          .select()
-          .single()
+        const sale = await withNetworkTimeout((async () => {
+          const { data: saleDataRes, error } = await supabase
+            .from('sales')
+            .insert({
+              user_id: user.id,
+              business_id: bId,
+              branch_id: saleData.branch_id || null,
+              customer_id: saleData.customer_id,
+              invoice_id: saleData.invoice_id,
+              sale_date: saleData.sale_date || new Date().toISOString().split('T')[0],
+              total_amount: saleData.total_amount,
+              payment_method: saleData.payment_method,
+              notes: saleData.notes
+            })
+            .select()
+            .single()
 
-        if (error) throw error
+          if (error) throw error
 
-        // Store sale items and reduce inventory stock
-        if (saleData.items && saleData.items.length > 0) {
-          const saleItemsToInsert = saleData.items.map(item => ({
-            sale_id: sale.id,
-            product_id: item.product_id,
-            product_name: item.product_name,
-            quantity: item.quantity,
-            unit_price: item.unit_price,
-            total_price: item.quantity * item.unit_price,
-            user_id: user.id,
-            business_id: bId,
-            branch_id: saleData.branch_id || null
-          }))
+          // Store sale items and reduce inventory stock
+          if (saleData.items && saleData.items.length > 0) {
+            const saleItemsToInsert = saleData.items.map(item => ({
+              sale_id: saleDataRes.id,
+              product_id: item.product_id,
+              product_name: item.product_name,
+              quantity: item.quantity,
+              unit_price: item.unit_price,
+              total_price: item.quantity * item.unit_price,
+              user_id: user.id,
+              business_id: bId,
+              branch_id: saleData.branch_id || null
+            }))
 
-          const { error: itemsError } = await supabase
-            .from('sale_items')
-            .insert(saleItemsToInsert)
+            const { error: itemsError } = await supabase
+              .from('sale_items')
+              .insert(saleItemsToInsert)
 
-          if (itemsError) {
-            console.error('Error inserting sale items:', itemsError)
-          }
+            if (itemsError) {
+              console.error('Error inserting sale items:', itemsError)
+            }
 
-          // Reduce inventory stock for each sold item
-          for (const item of saleData.items) {
-            const { data: inventoryItem } = await supabase
-              .from('inventory')
-              .select('stock_quantity')
-              .eq('id', item.product_id)
-              .single()
-
-            if (inventoryItem) {
-              await supabase
+            // Reduce inventory stock for each sold item
+            for (const item of saleData.items) {
+              const { data: inventoryItem } = await supabase
                 .from('inventory')
-                .update({
-                  stock_quantity: Math.max(0, inventoryItem.stock_quantity - item.quantity)
-                })
+                .select('stock_quantity')
                 .eq('id', item.product_id)
+                .single()
+
+              if (inventoryItem) {
+                await supabase
+                  .from('inventory')
+                  .update({
+                    stock_quantity: Math.max(0, inventoryItem.stock_quantity - item.quantity)
+                  })
+                  .eq('id', item.product_id)
+              }
             }
           }
-        }
+
+          return saleDataRes;
+        })(), 3500, 'Network timeout creating sale');
 
         return sale;
       } catch (err: any) {

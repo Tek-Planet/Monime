@@ -6,7 +6,7 @@ import { useEffect } from 'react'
 import { useBranchContext } from '@/contexts/BranchContext'
 import { fetchAllPages } from '@/lib/fetchAllPages'
 import { offlineDb, type LocalExpense } from '@/lib/offlineDb'
-import { cacheExpenses, recordOfflineExpense } from '@/lib/offlineSyncEngine'
+import { cacheExpenses, recordOfflineExpense, withNetworkTimeout } from '@/lib/offlineSyncEngine'
 
 export interface Expense {
   id: string
@@ -219,15 +219,43 @@ export function useExpenses(businessId?: string) {
   const createExpenseMutation = useMutation({
     mutationFn: async (expenseData: CreateExpenseData) => {
       const isDeviceOffline = typeof navigator !== 'undefined' && !navigator.onLine;
-      const { data: { user } } = await supabase.auth.getUser();
+
+      if (isDeviceOffline) {
+        const localExpense = await recordOfflineExpense({
+          user_id: '',
+          business_id: businessId || 'local-biz',
+          branch_id: expenseData.branch_id || selectedBranchId || null,
+          supplier_id: expenseData.supplier_id || null,
+          description: expenseData.description,
+          amount: expenseData.amount,
+          payment_method: expenseData.payment_method,
+          category: expenseData.category || null,
+          expense_date: expenseData.expense_date,
+          notes: expenseData.notes || null,
+        });
+
+        return {
+          ...localExpense,
+          is_offline: true,
+          synced: false,
+        } as Expense;
+      }
+
+      let user: any = null;
+      try {
+        const { data } = await withNetworkTimeout(supabase.auth.getUser(), 2000, 'Auth timeout');
+        user = data?.user;
+      } catch {
+        // network issue fetching user
+      }
 
       const businessIdToUse = businessId || (user ? await getOrCreateBusinessId(user.id) : null) || 'local-biz';
 
-      if (isDeviceOffline || !user) {
+      if (!user) {
         const localExpense = await recordOfflineExpense({
-          user_id: user?.id || '',
+          user_id: '',
           business_id: businessIdToUse,
-          branch_id: expenseData.branch_id || null,
+          branch_id: expenseData.branch_id || selectedBranchId || null,
           supplier_id: expenseData.supplier_id || null,
           description: expenseData.description,
           amount: expenseData.amount,
@@ -245,26 +273,33 @@ export function useExpenses(businessId?: string) {
       }
 
       try {
-        const { data: expense, error } = await supabase
-          .from('expenses')
-          .insert({
-            user_id: user.id,
-            business_id: businessIdToUse,
-            branch_id: expenseData.branch_id || null,
-            expense_date: expenseData.expense_date || new Date().toISOString().split('T')[0],
-            ...expenseData
-          })
-          .select()
-          .single()
+        const expense = await withNetworkTimeout(
+          supabase
+            .from('expenses')
+            .insert({
+              user_id: user.id,
+              business_id: businessIdToUse,
+              branch_id: expenseData.branch_id || selectedBranchId || null,
+              expense_date: expenseData.expense_date || new Date().toISOString().split('T')[0],
+              ...expenseData
+            })
+            .select()
+            .single()
+            .then(res => {
+              if (res.error) throw res.error;
+              return res.data;
+            }),
+          3500,
+          'Network timeout creating expense'
+        );
 
-        if (error) throw error
-        return expense
+        return expense;
       } catch (err: any) {
         console.warn('Network call failed, recording expense offline:', err);
         const localExpense = await recordOfflineExpense({
           user_id: user.id,
           business_id: businessIdToUse,
-          branch_id: expenseData.branch_id || null,
+          branch_id: expenseData.branch_id || selectedBranchId || null,
           supplier_id: expenseData.supplier_id || null,
           description: expenseData.description,
           amount: expenseData.amount,

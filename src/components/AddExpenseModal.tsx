@@ -16,6 +16,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { EXPENSE_CATEGORIES } from "@/lib/formatCategory";
 import { useBranchContext } from "@/contexts/BranchContext";
+import { useOffline } from "@/contexts/OfflineContext";
+import { OfflineFormBanner } from "@/components/OfflineFormBanner";
 const expenseSchema = z.object({
   description: z.string().min(1, "Description is required"),
   amount: z.string().min(1, "Amount is required"),
@@ -40,6 +42,7 @@ export function AddExpenseModal({ open, onOpenChange, onClose }: AddExpenseModal
   const { toast } = useToast();
   const { t } = useLanguage();
   const { selectedBranchId } = useBranchContext();
+  const { isOnline } = useOffline();
   const form = useForm<z.infer<typeof expenseSchema>>({
     resolver: zodResolver(expenseSchema),
     defaultValues: {
@@ -66,10 +69,6 @@ export function AddExpenseModal({ open, onOpenChange, onClose }: AddExpenseModal
         notes: values.notes || undefined,
         branch_id: selectedBranchId || undefined,
       });
-      toast({
-        title: t("modal.success"),
-        description: t("expense.addedSuccess"),
-      });
       form.reset();
       onClose();
     } catch (error) {
@@ -90,10 +89,10 @@ export function AddExpenseModal({ open, onOpenChange, onClose }: AddExpenseModal
     { value: "credit", label: t("payment.credit") },
   ];
 
-
   const formContent = (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <OfflineFormBanner moduleName="expense" />
         <FormField
           control={form.control}
           name="description"
@@ -232,7 +231,7 @@ export function AddExpenseModal({ open, onOpenChange, onClose }: AddExpenseModal
             {t("modal.cancel")}
           </Button>
           <Button type="submit" variant="gradient" disabled={loading} className="w-full sm:w-auto">
-            {loading ? t("modal.adding") : t("expense.addExpense")}
+            {loading ? (isOnline ? t("modal.adding") : "Saving Offline...") : (!isOnline ? "Save Expense (Offline)" : t("expense.addExpense"))}
           </Button>
         </div>
       </form>

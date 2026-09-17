@@ -18,6 +18,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { getOrCreateBusinessId } from "@/lib/getOrCreateBusinessId";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useBranchContext } from "@/contexts/BranchContext";
+import { useCustomers } from "@/hooks/useCustomers";
+import { useOffline } from "@/contexts/OfflineContext";
+import { OfflineFormBanner } from "@/components/OfflineFormBanner";
 interface CustomerData {
   name: string;
   phone: string;
@@ -38,6 +41,8 @@ export function AddCustomerModal({ onCustomerAdded }: AddCustomerModalProps = {}
   const { toast } = useToast();
   const { t } = useLanguage();
   const { selectedBranchId } = useBranchContext();
+  const { createCustomer } = useCustomers();
+  const { isOnline } = useOffline();
   const [customer, setCustomer] = useState<CustomerData>({
     name: "",
     phone: "",
@@ -65,49 +70,15 @@ export function AddCustomerModal({ onCustomerAdded }: AddCustomerModalProps = {}
     setLoading(true);
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        toast({
-          title: t('message.error'),
-          description: t('customer.mustBeLoggedIn'),
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Get business ID (respects team membership - won't create if member)
-      const businessId = await getOrCreateBusinessId(user.id);
-      
-      if (!businessId) {
-        toast({
-          title: t('message.error'),
-          description: t('customer.noBusinessFound'),
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const { error } = await supabase.from("customers").insert({
-        user_id: user.id,
-        business_id: businessId,
-        branch_id: selectedBranchId || null,
+      await createCustomer({
         name: customer.name,
-        phone: customer.phone || null,
-        email: customer.email || null,
-        address: customer.address || null,
-        business_type: customer.business_type || null,
+        phone: customer.phone || undefined,
+        email: customer.email || undefined,
+        address: customer.address || undefined,
+        business_type: customer.business_type || undefined,
         credit_limit: parseFloat(customer.credit_limit) || 0,
-        birthday: customer.birthday ? customer.birthday.toISOString().split("T")[0] : null,
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: t('message.success'),
-        description: t('customer.addedSuccess'),
+        birthday: customer.birthday ? customer.birthday.toISOString().split("T")[0] : undefined,
+        branch_id: selectedBranchId || undefined,
       });
 
       // Reset form and close modal
@@ -154,6 +125,8 @@ export function AddCustomerModal({ onCustomerAdded }: AddCustomerModalProps = {}
           </DialogTitle>
           <DialogDescription className="text-left">{t('customer.addToRecords')}</DialogDescription>
         </DialogHeader>
+
+        <OfflineFormBanner moduleName="customer" />
 
         <div className="overflow-y-auto flex-1 grid gap-4 sm:gap-6 py-4">
           {/* Basic Information */}
@@ -278,7 +251,7 @@ export function AddCustomerModal({ onCustomerAdded }: AddCustomerModalProps = {}
             disabled={!isFormValid || loading}
             className="order-1 sm:order-2 min-w-[100px] h-12 text-base"
           >
-            {loading ? t('modal.adding') : t('customer.addCustomer')}
+            {loading ? (isOnline ? t('modal.adding') : "Saving Offline...") : (!isOnline ? "Save Customer (Offline)" : t('customer.addCustomer'))}
           </Button>
         </div>
       </DialogContent>

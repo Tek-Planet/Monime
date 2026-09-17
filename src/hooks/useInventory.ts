@@ -7,7 +7,7 @@ import { useEffect, useMemo } from 'react'
 import { useBranchContext } from '@/contexts/BranchContext'
 import { fetchAllPages } from '@/lib/fetchAllPages'
 import { offlineDb, type LocalInventoryItem } from '@/lib/offlineDb'
-import { cacheInventoryItems } from '@/lib/offlineSyncEngine'
+import { cacheInventoryItems, recordOfflineInventory, recordOfflineStockAdjustment, withNetworkTimeout } from '@/lib/offlineSyncEngine'
 
 export interface InventoryItem {
   id: string
@@ -169,16 +169,13 @@ export function useInventory(businessId?: string) {
 
   const addInventoryItemMutation = useMutation({
     mutationFn: async (itemData: InventoryFormData) => {
-      if (!user || !business) throw new Error('User or business not found')
-
       const isDeviceOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+      const bId = business?.id || businessId || 'local-biz';
 
-      if (isDeviceOffline) {
-        const id = crypto.randomUUID ? crypto.randomUUID() : 'offline-item-' + Date.now();
-        const localItem: LocalInventoryItem = {
-          id,
-          business_id: business.id,
-          branch_id: itemData.branch_id || null,
+      if (isDeviceOffline || !user) {
+        const localItem = await recordOfflineInventory({
+          business_id: bId,
+          branch_id: itemData.branch_id || selectedBranchId || null,
           name: itemData.name,
           category: itemData.category || null,
           unit_price: itemData.unit_price,
@@ -188,30 +185,57 @@ export function useInventory(businessId?: string) {
           supplier: itemData.supplier || null,
           location: itemData.location || null,
           is_active: itemData.is_active ?? true,
-          updated_at: new Date().toISOString(),
-        };
-
-        await offlineDb.inventory.put(localItem);
+        });
         return {
           ...localItem,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
+          is_offline: true,
+          synced: false,
         } as InventoryItem;
       }
 
-      const { data, error } = await supabase
-        .from('inventory')
-        .insert({
-          ...itemData,
-          user_id: user.id,
-          business_id: business.id,
-          branch_id: itemData.branch_id || null
-        })
-        .select()
-        .single()
+      try {
+        const data = await withNetworkTimeout((async () => {
+          const { data: inserted, error } = await supabase
+            .from('inventory')
+            .insert({
+              ...itemData,
+              user_id: user.id,
+              business_id: bId,
+              branch_id: itemData.branch_id || selectedBranchId || null
+            })
+            .select()
+            .single()
 
-      if (error) throw error
-      return data
+          if (error) throw error
+          return inserted
+        })(), 3500, 'Network timeout creating product');
+
+        return data
+      } catch (err: any) {
+        console.warn('Network call failed, saving product offline:', err);
+        const localItem = await recordOfflineInventory({
+          business_id: bId,
+          branch_id: itemData.branch_id || selectedBranchId || null,
+          name: itemData.name,
+          category: itemData.category || null,
+          unit_price: itemData.unit_price,
+          cost_price: itemData.cost_price || null,
+          stock_quantity: itemData.stock_quantity,
+          min_stock_level: itemData.min_stock_level || null,
+          supplier: itemData.supplier || null,
+          location: itemData.location || null,
+          is_active: itemData.is_active ?? true,
+        });
+        return {
+          ...localItem,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          is_offline: true,
+          synced: false,
+        } as InventoryItem;
+      }
     },
     onMutate: async (newItem): Promise<MutationContext> => {
       await queryClient.cancelQueries({ queryKey: QUERY_KEY })
@@ -240,11 +264,19 @@ export function useInventory(businessId?: string) {
         variant: 'destructive'
       })
     },
-    onSuccess: () => {
-      toast({
-        title: 'Success',
-        description: 'Inventory item added successfully'
-      })
+    onSuccess: (result: any) => {
+      const isDeviceOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+      if (isDeviceOffline || result?.is_offline || result?.synced === false) {
+        toast({
+          title: 'Product Saved Locally (Offline)',
+          description: 'Product stored on device and will sync to server once connected.',
+        });
+      } else {
+        toast({
+          title: 'Success',
+          description: 'Inventory item added successfully'
+        });
+      }
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY })
@@ -253,28 +285,52 @@ export function useInventory(businessId?: string) {
 
   const updateInventoryItemMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<InventoryFormData> }) => {
-      if (!user) throw new Error('User not found')
-
       const isDeviceOffline = typeof navigator !== 'undefined' && !navigator.onLine;
-      if (isDeviceOffline) {
+      if (isDeviceOffline || !user) {
         await offlineDb.inventory.update(id, {
           ...updates,
           updated_at: new Date().toISOString(),
         });
+        if (typeof updates.stock_quantity === 'number') {
+          await recordOfflineStockAdjustment({
+            product_id: id,
+            new_stock: updates.stock_quantity,
+          });
+        }
         const updated = await offlineDb.inventory.get(id);
-        return updated as any;
+        return { ...(updated as any), is_offline: true, synced: false };
       }
 
-      const { data, error } = await supabase
-        .from('inventory')
-        .update(updates)
-        .eq('id', id)
-        .eq('user_id', user.id)
-        .select()
-        .single()
+      try {
+        const data = await withNetworkTimeout((async () => {
+          const { data: updated, error } = await supabase
+            .from('inventory')
+            .update(updates)
+            .eq('id', id)
+            .eq('user_id', user.id)
+            .select()
+            .single()
 
-      if (error) throw error
-      return data
+          if (error) throw error
+          return updated
+        })(), 3500, 'Network timeout updating inventory');
+
+        return data
+      } catch (err: any) {
+        console.warn('Network call failed, updating inventory offline:', err);
+        await offlineDb.inventory.update(id, {
+          ...updates,
+          updated_at: new Date().toISOString(),
+        });
+        if (typeof updates.stock_quantity === 'number') {
+          await recordOfflineStockAdjustment({
+            product_id: id,
+            new_stock: updates.stock_quantity,
+          });
+        }
+        const updated = await offlineDb.inventory.get(id);
+        return { ...(updated as any), is_offline: true, synced: false };
+      }
     },
     onMutate: async ({ id, updates }): Promise<MutationContext> => {
       await queryClient.cancelQueries({ queryKey: QUERY_KEY })

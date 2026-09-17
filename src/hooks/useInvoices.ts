@@ -6,6 +6,7 @@ import { useEffect } from 'react'
 import { useBranchContext } from '@/contexts/BranchContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { fetchAllPages } from '@/lib/fetchAllPages'
+import { recordOfflineInvoice, withNetworkTimeout } from '@/lib/offlineSyncEngine'
 
 export interface Invoice {
   id: string
@@ -133,76 +134,108 @@ export function useInvoices(businessId?: string) {
 
   const createInvoiceMutation = useMutation({
     mutationFn: async (invoiceData: CreateInvoiceData) => {
-      if (!user) {
-        throw new Error('You must be logged in to create invoices')
+      const isDeviceOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+
+      let bId = businessId;
+      if (!bId && user) {
+        bId = (await getOrCreateBusinessId(user.id)) || undefined;
+      }
+      if (!bId) {
+        bId = 'local-biz';
       }
 
-      const businessId = await getOrCreateBusinessId(user.id)
-      if (!businessId) throw new Error('Failed to get business')
+      if (isDeviceOffline || !user) {
+        return await recordOfflineInvoice({
+          user_id: user?.id || '',
+          business_id: bId,
+          branch_id: invoiceData.branch_id || selectedBranchId || null,
+          customer_id: invoiceData.customer_id || null,
+          due_date: invoiceData.due_date || null,
+          notes: invoiceData.notes || null,
+          items: invoiceData.items,
+        });
+      }
 
-      const subtotal = invoiceData.items.reduce((sum, item) => sum + item.total_price, 0)
-      const tax_amount = subtotal * 0.15
-      const total_amount = subtotal + tax_amount
-      const invoiceNumber = `INV-${Date.now()}`
+      try {
+        const invoice = await withNetworkTimeout((async () => {
+          const subtotal = invoiceData.items.reduce((sum, item) => sum + item.total_price, 0)
+          const tax_amount = subtotal * 0.15
+          const total_amount = subtotal + tax_amount
+          const invoiceNumber = `INV-${Date.now()}`
 
-      const { data: invoice, error: invoiceError } = await supabase
-        .from('invoices')
-        .insert({
-          user_id: user.id,
-          business_id: businessId,
-          branch_id: invoiceData.branch_id || null,
-          customer_id: invoiceData.customer_id,
-          invoice_number: invoiceNumber,
-          invoice_date: new Date().toISOString().split('T')[0],
-          due_date: invoiceData.due_date,
-          subtotal,
-          tax_amount,
-          total_amount,
-          paid_amount: 0,
-          status: 'draft',
-          notes: invoiceData.notes
-        })
-        .select()
-        .single()
-
-      if (invoiceError) throw invoiceError
-
-      const itemsWithInvoiceId = invoiceData.items.map(item => ({
-        invoice_id: invoice.id,
-        branch_id: invoiceData.branch_id || null,
-        product_name: item.product_name,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        total_price: item.total_price,
-        ...(item.product_id && { product_id: item.product_id })
-      }))
-
-      const { error: itemsError } = await supabase
-        .from('invoice_items')
-        .insert(itemsWithInvoiceId)
-
-      if (itemsError) throw itemsError
-
-      for (const item of invoiceData.items) {
-        if (item.product_id) {
-          const { data: inventoryItem } = await supabase
-            .from('inventory')
-            .select('stock_quantity')
-            .eq('id', item.product_id)
+          const { data: invData, error: invoiceError } = await supabase
+            .from('invoices')
+            .insert({
+              user_id: user.id,
+              business_id: bId,
+              branch_id: invoiceData.branch_id || selectedBranchId || null,
+              customer_id: invoiceData.customer_id,
+              invoice_number: invoiceNumber,
+              invoice_date: new Date().toISOString().split('T')[0],
+              due_date: invoiceData.due_date,
+              subtotal,
+              tax_amount,
+              total_amount,
+              paid_amount: 0,
+              status: 'draft',
+              notes: invoiceData.notes
+            })
+            .select()
             .single()
 
-          if (inventoryItem) {
-            await supabase
-              .from('inventory')
-              .update({
-                stock_quantity: Math.max(0, inventoryItem.stock_quantity - item.quantity)
-              })
-              .eq('id', item.product_id)
-          }
-        }
-      }
+          if (invoiceError) throw invoiceError
 
-      return invoice
+          const itemsWithInvoiceId = invoiceData.items.map(item => ({
+            invoice_id: invData.id,
+            branch_id: invoiceData.branch_id || selectedBranchId || null,
+            product_name: item.product_name,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            total_price: item.total_price,
+            ...(item.product_id && { product_id: item.product_id })
+          }))
+
+          const { error: itemsError } = await supabase
+            .from('invoice_items')
+            .insert(itemsWithInvoiceId)
+
+          if (itemsError) throw itemsError
+
+          for (const item of invoiceData.items) {
+            if (item.product_id) {
+              const { data: inventoryItem } = await supabase
+                .from('inventory')
+                .select('stock_quantity')
+                .eq('id', item.product_id)
+                .single()
+
+              if (inventoryItem) {
+                await supabase
+                  .from('inventory')
+                  .update({
+                    stock_quantity: Math.max(0, inventoryItem.stock_quantity - item.quantity)
+                  })
+                  .eq('id', item.product_id)
+              }
+            }
+          }
+
+          return invData;
+        })(), 3500, 'Network timeout creating invoice');
+
+        return invoice;
+      } catch (err: any) {
+        console.warn('Network call failed, saving invoice offline:', err);
+        return await recordOfflineInvoice({
+          user_id: user.id,
+          business_id: bId,
+          branch_id: invoiceData.branch_id || selectedBranchId || null,
+          customer_id: invoiceData.customer_id || null,
+          due_date: invoiceData.due_date || null,
+          notes: invoiceData.notes || null,
+          items: invoiceData.items,
+        });
+      }
     },
     onMutate: async (newInvoice): Promise<MutationContext> => {
       await queryClient.cancelQueries({ queryKey: QUERY_KEY })
@@ -250,11 +283,19 @@ export function useInvoices(businessId?: string) {
         variant: "destructive"
       })
     },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Invoice created successfully"
-      })
+    onSuccess: (result: any) => {
+      const isDeviceOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+      if (isDeviceOffline || result?.is_offline || result?.synced === false) {
+        toast({
+          title: "Invoice Saved Locally (Offline)",
+          description: "Stored securely on device. It will automatically sync to the server once online.",
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: "Invoice created successfully"
+        });
+      }
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY })

@@ -23,6 +23,8 @@ import { useBranchContext } from "@/contexts/BranchContext";
 import { getOrCreateBusinessId } from "@/lib/getOrCreateBusinessId";
 import { fetchAllPages } from "@/lib/fetchAllPages";
 import { offlineDb } from "@/lib/offlineDb";
+import { OfflineFormBanner } from "@/components/OfflineFormBanner";
+import { useOffline } from "@/contexts/OfflineContext";
 
 interface Customer {
   id: string;
@@ -42,6 +44,7 @@ interface SaleItem {
 
 export function RecordSaleModal({ onSaleCreated }: { onSaleCreated?: () => void }) {
   const { t } = useLanguage();
+  const { isOnline } = useOffline();
   const [open, setOpen] = useState(false);
   const [customerName, setCustomerName] = useState("");
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
@@ -265,6 +268,8 @@ export function RecordSaleModal({ onSaleCreated }: { onSaleCreated?: () => void 
             {t('sale.fillDetails')}
           </DialogDescription>
         </DialogHeader>
+
+        <OfflineFormBanner moduleName="sale" />
 
         <div className="flex-1 overflow-y-auto space-y-4 sm:space-y-6">
           {/* Sale Header */}
@@ -520,7 +525,7 @@ export function RecordSaleModal({ onSaleCreated }: { onSaleCreated?: () => void 
               className="order-1 sm:order-2 h-12 text-base"
             >
               <Save className="h-4 w-4" />
-              {loading ? t('sale.recording') : t('sale.recordSale')}
+              {loading ? (isOnline ? t('sale.recording') : "Saving Offline...") : (!isOnline ? "Save Sale (Offline)" : t('sale.recordSale'))}
             </Button>
           </div>
         </div>

@@ -13,6 +13,8 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useBranchContext } from "@/contexts/BranchContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { getCategoriesForBusinessType, getBusinessTypeOption } from "@/lib/businessArchetypes";
+import { useOffline } from "@/contexts/OfflineContext";
+import { OfflineFormBanner } from "@/components/OfflineFormBanner";
 
 interface AddInventoryModalProps {
   children?: React.ReactNode;
@@ -23,6 +25,7 @@ export function AddInventoryModal({ children, onItemAdded }: AddInventoryModalPr
   const { t } = useLanguage();
   const { selectedBranchId } = useBranchContext();
   const { business } = useUserProfile();
+  const { isOnline } = useOffline();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isCustomCategory, setIsCustomCategory] = useState(false);
@@ -127,6 +130,8 @@ export function AddInventoryModal({ children, onItemAdded }: AddInventoryModalPr
             )}
           </div>
         </DialogHeader>
+
+        <OfflineFormBanner moduleName="inventory item" />
 
         <form onSubmit={handleSubmit} className="overflow-y-auto flex-1 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -302,7 +307,7 @@ export function AddInventoryModal({ children, onItemAdded }: AddInventoryModalPr
               {t('modal.cancel')}
             </Button>
             <Button type="submit" disabled={loading || !formData.name}>
-              {loading ? t('modal.adding') : t('inventory.addProduct')}
+              {loading ? (isOnline ? t('modal.adding') : "Saving Offline...") : (!isOnline ? "Save Product (Offline)" : t('inventory.addProduct'))}
             </Button>
           </div>
         </form>

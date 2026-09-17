@@ -106,7 +106,7 @@ export interface LocalAttendance {
 export interface OutboxAction {
   queue_id?: number;
   id: string;
-  entity_type: 'sale' | 'expense' | 'customer' | 'inventory_stock' | 'attendance';
+  entity_type: 'sale' | 'expense' | 'customer' | 'inventory_stock' | 'attendance' | 'inventory' | 'supplier' | 'invoice';
   action: 'INSERT' | 'UPDATE' | 'DELETE';
   payload: any;
   items_payload?: any[];

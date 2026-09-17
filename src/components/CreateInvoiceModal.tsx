@@ -14,6 +14,9 @@ import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useBranchContext } from "@/contexts/BranchContext";
 import { fetchAllPages } from "@/lib/fetchAllPages";
+import { useOffline } from "@/contexts/OfflineContext";
+import { OfflineFormBanner } from "@/components/OfflineFormBanner";
+import { offlineDb } from "@/lib/offlineDb";
 interface Customer {
   id: string;
   name: string;
@@ -38,6 +41,7 @@ interface CreateInvoiceModalProps {
 export function CreateInvoiceModal({ open, onOpenChange, onInvoiceCreated }: CreateInvoiceModalProps) {
   const { t } = useLanguage();
   const { selectedBranchId } = useBranchContext();
+  const { isOnline } = useOffline();
   const [invoiceData, setInvoiceData] = useState({
     customer_id: "",
     due_date: "",
@@ -57,6 +61,14 @@ export function CreateInvoiceModal({ open, onOpenChange, onInvoiceCreated }: Cre
 
   const fetchCustomers = async () => {
     try {
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        const local = await offlineDb.customers.toArray();
+        if (local.length > 0) {
+          setCustomers(local.map(c => ({ id: c.id, name: c.name, email: c.email || undefined, phone: c.phone || undefined })));
+          return;
+        }
+      }
+
       const data = await fetchAllPages<Customer>(() => {
         let query = supabase.from("customers").select("id, name, email, phone");
         
@@ -69,7 +81,15 @@ export function CreateInvoiceModal({ open, onOpenChange, onInvoiceCreated }: Cre
       });
       setCustomers(data || []);
     } catch (error) {
-      console.error("Error fetching customers:", error);
+      console.error("Error fetching customers, checking offline db:", error);
+      try {
+        const local = await offlineDb.customers.toArray();
+        if (local.length > 0) {
+          setCustomers(local.map(c => ({ id: c.id, name: c.name, email: c.email || undefined, phone: c.phone || undefined })));
+        }
+      } catch {
+        // ignore
+      }
     }
   };
 
@@ -162,6 +182,8 @@ export function CreateInvoiceModal({ open, onOpenChange, onInvoiceCreated }: Cre
             {t('invoice.createNew')}
           </DialogTitle>
         </DialogHeader>
+
+        <OfflineFormBanner moduleName="invoice" />
 
         <div className="flex-1 overflow-y-auto space-y-4 sm:space-y-6">
           {/* Invoice Header */}
@@ -321,7 +343,7 @@ export function CreateInvoiceModal({ open, onOpenChange, onInvoiceCreated }: Cre
               className="order-1 sm:order-2 h-12 text-base"
             >
               <Save className="h-4 w-4" />
-              {loading ? t('modal.creating') : t('invoice.createInvoice')}
+              {loading ? (isOnline ? t('modal.creating') : "Saving Offline...") : (!isOnline ? "Save Invoice (Offline)" : t('invoice.createInvoice'))}
             </Button>
           </div>
         </div>

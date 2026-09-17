@@ -7,7 +7,7 @@ import { useEffect } from 'react'
 import { useBranchContext } from '@/contexts/BranchContext'
 import { fetchAllPages } from '@/lib/fetchAllPages'
 import { offlineDb, type LocalCustomer } from '@/lib/offlineDb'
-import { cacheCustomers, recordOfflineCustomer } from '@/lib/offlineSyncEngine'
+import { cacheCustomers, recordOfflineCustomer, withNetworkTimeout } from '@/lib/offlineSyncEngine'
 
 export interface Customer {
   id: string
@@ -186,19 +186,26 @@ export function useCustomers(businessId?: string) {
       }
 
       try {
-        const { data, error } = await supabase
-          .from('customers')
-          .insert([{
-            user_id: user.id,
-            business_id: bId,
-            branch_id: customerData.branch_id || selectedBranchId || null,
-            ...customerData
-          }])
-          .select()
-          .single()
+        const data = await withNetworkTimeout(
+          supabase
+            .from('customers')
+            .insert([{
+              user_id: user.id,
+              business_id: bId,
+              branch_id: customerData.branch_id || selectedBranchId || null,
+              ...customerData
+            }])
+            .select()
+            .single()
+            .then(res => {
+              if (res.error) throw res.error;
+              return res.data;
+            }),
+          3500,
+          'Network timeout creating customer'
+        );
 
-        if (error) throw error
-        return data
+        return data;
       } catch (err: any) {
         console.warn('Network failed when creating customer, saving offline:', err);
         const localCustomer = await recordOfflineCustomer({
@@ -246,8 +253,13 @@ export function useCustomers(businessId?: string) {
       console.error('Error creating customer:', err)
       toast.error('Failed to create customer')
     },
-    onSuccess: () => {
-      toast.success('Customer saved successfully')
+    onSuccess: (data: any) => {
+      const isDeviceOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+      if (isDeviceOffline || data?.synced === false || data?.is_offline) {
+        toast.success('Customer saved locally (offline). Will sync once reconnected.');
+      } else {
+        toast.success('Customer saved successfully');
+      }
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY })

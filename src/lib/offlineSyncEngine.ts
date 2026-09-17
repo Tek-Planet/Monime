@@ -355,6 +355,245 @@ export async function recordOfflineCustomer(input: OfflineCustomerInput): Promis
   return localCustomer;
 }
 
+export async function withNetworkTimeout<T>(
+  promise: Promise<T>,
+  ms = 3500,
+  timeoutMsg = 'Network operation timed out'
+): Promise<T> {
+  let timer: any;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(timeoutMsg)), ms);
+  });
+  return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timer));
+}
+
+export interface OfflineInventoryInput {
+  business_id: string;
+  branch_id?: string | null;
+  name: string;
+  category?: string | null;
+  unit_price: number;
+  cost_price?: number | null;
+  stock_quantity: number;
+  min_stock_level?: number | null;
+  supplier?: string | null;
+  location?: string | null;
+}
+
+export async function recordOfflineInventory(input: OfflineInventoryInput): Promise<LocalInventoryItem> {
+  const id = generateUUID();
+  const now = new Date().toISOString();
+
+  const localItem: LocalInventoryItem = {
+    id,
+    business_id: input.business_id,
+    branch_id: input.branch_id || null,
+    name: input.name,
+    category: input.category || null,
+    unit_price: input.unit_price,
+    cost_price: input.cost_price || null,
+    stock_quantity: input.stock_quantity,
+    min_stock_level: input.min_stock_level || null,
+    supplier: input.supplier || null,
+    location: input.location || null,
+    is_active: true,
+    updated_at: now,
+  };
+
+  await offlineDb.transaction('rw', [offlineDb.inventory, offlineDb.outbox], async () => {
+    await offlineDb.inventory.put(localItem);
+
+    await offlineDb.outbox.add({
+      id,
+      entity_type: 'inventory',
+      action: 'INSERT',
+      payload: {
+        id,
+        business_id: input.business_id,
+        branch_id: input.branch_id || null,
+        name: input.name,
+        category: input.category || null,
+        unit_price: input.unit_price,
+        cost_price: input.cost_price || null,
+        stock_quantity: input.stock_quantity,
+        min_stock_level: input.min_stock_level || null,
+        supplier: input.supplier || null,
+        location: input.location || null,
+        is_active: true,
+        created_at: now,
+        updated_at: now,
+      },
+      created_at: now,
+      status: 'pending',
+      retry_count: 0,
+    });
+  });
+
+  return localItem;
+}
+
+export async function recordOfflineStockAdjustment(
+  id: string,
+  newQuantity: number,
+  type?: 'add' | 'subtract',
+  quantityChange?: number
+): Promise<void> {
+  const now = new Date().toISOString();
+  await offlineDb.transaction('rw', [offlineDb.inventory, offlineDb.outbox], async () => {
+    await offlineDb.inventory.update(id, { stock_quantity: newQuantity, updated_at: now });
+    await offlineDb.outbox.add({
+      id: generateUUID(),
+      entity_type: 'inventory_stock',
+      action: 'UPDATE',
+      payload: { id, newQuantity, type, quantityChange },
+      created_at: now,
+      status: 'pending',
+      retry_count: 0,
+    });
+  });
+}
+
+export interface OfflineSupplierInput {
+  business_id: string;
+  branch_id?: string | null;
+  user_id?: string;
+  name: string;
+  phone?: string | null;
+  location?: string | null;
+  product_category?: string | null;
+  notes?: string | null;
+}
+
+export async function recordOfflineSupplier(input: OfflineSupplierInput): Promise<LocalSupplier> {
+  const id = generateUUID();
+  const now = new Date().toISOString();
+
+  const localSupplier: LocalSupplier = {
+    id,
+    business_id: input.business_id,
+    name: input.name,
+    phone: input.phone || null,
+    email: null,
+  };
+
+  await offlineDb.transaction('rw', [offlineDb.suppliers, offlineDb.outbox], async () => {
+    await offlineDb.suppliers.put(localSupplier);
+
+    await offlineDb.outbox.add({
+      id,
+      entity_type: 'supplier',
+      action: 'INSERT',
+      payload: {
+        id,
+        business_id: input.business_id,
+        branch_id: input.branch_id || null,
+        user_id: input.user_id || '',
+        name: input.name,
+        phone: input.phone || null,
+        location: input.location || null,
+        product_category: input.product_category || null,
+        notes: input.notes || null,
+        created_at: now,
+        updated_at: now,
+      },
+      created_at: now,
+      status: 'pending',
+      retry_count: 0,
+    });
+  });
+
+  return localSupplier;
+}
+
+export interface OfflineInvoiceInput {
+  user_id?: string;
+  business_id: string;
+  branch_id?: string | null;
+  customer_id?: string | null;
+  due_date?: string | null;
+  notes?: string | null;
+  items: Array<{
+    product_id?: string | null;
+    product_name: string;
+    quantity: number;
+    unit_price: number;
+    total_price: number;
+  }>;
+}
+
+export async function recordOfflineInvoice(input: OfflineInvoiceInput): Promise<any> {
+  const id = generateUUID();
+  const now = new Date().toISOString();
+  const today = now.split('T')[0];
+  const invoiceNumber = `INV-${Date.now()}`;
+  const subtotal = input.items.reduce((s, i) => s + i.total_price, 0);
+  const tax_amount = subtotal * 0.15;
+  const total_amount = subtotal + tax_amount;
+
+  const invoiceRecord = {
+    id,
+    user_id: input.user_id || '',
+    business_id: input.business_id,
+    branch_id: input.branch_id || null,
+    customer_id: input.customer_id || null,
+    invoice_number: invoiceNumber,
+    invoice_date: today,
+    due_date: input.due_date || today,
+    subtotal,
+    tax_amount,
+    total_amount,
+    paid_amount: 0,
+    status: 'draft',
+    notes: input.notes || null,
+    created_at: now,
+    updated_at: now,
+  };
+
+  const itemsWithInvoiceId = input.items.map((item, idx) => ({
+    id: `${id}-item-${idx}`,
+    invoice_id: id,
+    branch_id: input.branch_id || null,
+    product_name: item.product_name,
+    quantity: item.quantity,
+    unit_price: item.unit_price,
+    total_price: item.total_price,
+    product_id: item.product_id || null,
+  }));
+
+  await offlineDb.transaction('rw', [offlineDb.inventory, offlineDb.outbox], async () => {
+    // reduce local inventory stock if applicable
+    for (const item of input.items) {
+      if (item.product_id) {
+        const inv = await offlineDb.inventory.get(item.product_id);
+        if (inv) {
+          await offlineDb.inventory.update(item.product_id, {
+            stock_quantity: Math.max(0, inv.stock_quantity - item.quantity),
+            updated_at: now,
+          });
+        }
+      }
+    }
+
+    await offlineDb.outbox.add({
+      id,
+      entity_type: 'invoice',
+      action: 'INSERT',
+      payload: invoiceRecord,
+      items_payload: itemsWithInvoiceId,
+      created_at: now,
+      status: 'pending',
+      retry_count: 0,
+    });
+  });
+
+  return {
+    ...invoiceRecord,
+    invoice_items: itemsWithInvoiceId,
+    is_offline: true,
+    synced: false,
+  };
+}
+
 // -------------------------------------------------------------
 // Outbox Synchronization Engine (Local Outbox -> Supabase)
 // -------------------------------------------------------------
@@ -364,7 +603,16 @@ function isTableMissingOrIgnorableError(err: any): boolean {
   const code = String(err.code || '');
   const msg = String(err.message || '').toLowerCase();
   const details = String(err.details || '').toLowerCase();
-  if (code === '23505' || code === '42P01' || code === 'PGRST205' || code === '404' || code === 'PGRST116') {
+  if (
+    code === '23505' ||
+    code === '42P01' ||
+    code === 'PGRST205' ||
+    code === '404' ||
+    code === 'PGRST116' ||
+    code === '42501' ||
+    msg.includes('row-level security') ||
+    msg.includes('permission denied')
+  ) {
     return true;
   }
   if (
@@ -545,9 +793,9 @@ export async function processOutboxSync(): Promise<SyncResult> {
         await offlineDb.outbox.delete(action.queue_id);
         successCount++;
       } else if (action.entity_type === 'attendance') {
+        const record = action.payload;
         try {
           if (action.action === 'INSERT') {
-            const record = action.payload;
             const { error: attError } = await supabase.from('staff_attendance' as any).upsert({
               id: record.id,
               business_id: record.business_id,
@@ -570,7 +818,6 @@ export async function processOutboxSync(): Promise<SyncResult> {
               throw attError;
             }
           } else if (action.action === 'UPDATE') {
-            const record = action.payload;
             const { error: attError } = await supabase.from('staff_attendance' as any).update({
               clock_out_time: record.clock_out_time,
               status: record.status,
@@ -589,7 +836,66 @@ export async function processOutboxSync(): Promise<SyncResult> {
           }
         }
 
+        // Dual-write to activity_logs for cross-environment visibility (localhost <-> staging)
+        try {
+          if (record.user_id && record.business_id) {
+            await supabase.from('activity_logs').insert({
+              user_id: record.user_id,
+              business_id: record.business_id,
+              action: action.action === 'INSERT' ? 'attendance_clock_in' : 'attendance_clock_out',
+              entity_type: 'attendance',
+              entity_id: record.id,
+              metadata: {
+                ...record,
+                attendance: record,
+              },
+            });
+          }
+        } catch (logErr) {
+          console.warn('Could not dual-log attendance to activity_logs:', logErr);
+        }
+
         await offlineDb.attendance.update(action.id, { synced: true, is_offline: false });
+        await offlineDb.outbox.delete(action.queue_id);
+        successCount++;
+      } else if (action.entity_type === 'inventory' && action.action === 'INSERT') {
+        const { error: invError } = await supabase.from('inventory').insert(action.payload);
+        if (invError && invError.code !== '23505' && !isTableMissingOrIgnorableError(invError)) {
+          throw invError;
+        }
+        await offlineDb.outbox.delete(action.queue_id);
+        successCount++;
+      } else if (action.entity_type === 'inventory_stock' && action.action === 'UPDATE') {
+        const { id, newQuantity } = action.payload || {};
+        if (id) {
+          const { error: stockError } = await supabase
+            .from('inventory')
+            .update({ stock_quantity: newQuantity, updated_at: new Date().toISOString() })
+            .eq('id', id);
+          if (stockError && !isTableMissingOrIgnorableError(stockError)) {
+            throw stockError;
+          }
+        }
+        await offlineDb.outbox.delete(action.queue_id);
+        successCount++;
+      } else if (action.entity_type === 'supplier' && action.action === 'INSERT') {
+        const { error: supError } = await supabase.from('suppliers').insert(action.payload);
+        if (supError && supError.code !== '23505' && !isTableMissingOrIgnorableError(supError)) {
+          throw supError;
+        }
+        await offlineDb.outbox.delete(action.queue_id);
+        successCount++;
+      } else if (action.entity_type === 'invoice' && action.action === 'INSERT') {
+        const { error: invError } = await supabase.from('invoices').insert(action.payload);
+        if (invError && invError.code !== '23505' && !isTableMissingOrIgnorableError(invError)) {
+          throw invError;
+        }
+        if (action.items_payload && action.items_payload.length > 0) {
+          const { error: itemsError } = await supabase.from('invoice_items').insert(action.items_payload);
+          if (itemsError && !isTableMissingOrIgnorableError(itemsError)) {
+            console.warn('Error syncing invoice items:', itemsError);
+          }
+        }
         await offlineDb.outbox.delete(action.queue_id);
         successCount++;
       } else {

@@ -6,7 +6,7 @@ import { useEffect } from 'react'
 import { useBranchContext } from '@/contexts/BranchContext'
 import { fetchAllPages } from '@/lib/fetchAllPages'
 import { offlineDb } from '@/lib/offlineDb'
-import { cacheSuppliers } from '@/lib/offlineSyncEngine'
+import { cacheSuppliers, recordOfflineSupplier, withNetworkTimeout } from '@/lib/offlineSyncEngine'
 
 export interface Supplier {
   id: string
@@ -139,28 +139,90 @@ export function useSuppliers(businessId?: string) {
 
   const createSupplierMutation = useMutation({
     mutationFn: async (supplierData: CreateSupplierData) => {
-      const { data: { user } } = await supabase.auth.getUser()
-      
-      if (!user) {
-        throw new Error('You must be logged in to create suppliers')
+      const isDeviceOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+      const bId = businessId || 'local-biz';
+
+      if (isDeviceOffline) {
+        const localSupplier = await recordOfflineSupplier({
+          business_id: bId,
+          name: supplierData.name,
+          phone: supplierData.phone,
+          notes: supplierData.notes,
+        });
+        return {
+          id: localSupplier.id,
+          user_id: '',
+          business_id: bId,
+          branch_id: supplierData.branch_id || null,
+          name: localSupplier.name,
+          phone: localSupplier.phone || undefined,
+          location: supplierData.location,
+          product_category: supplierData.product_category,
+          notes: supplierData.notes,
+          current_balance: 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          is_offline: true,
+          synced: false,
+        } as Supplier;
       }
 
-      const businessIdToUse = businessId || await getOrCreateBusinessId(user.id)
-      if (!businessIdToUse) throw new Error('Failed to get business')
+      try {
+        const { data: { user } } = await withNetworkTimeout(
+          supabase.auth.getUser(),
+          2000,
+          'Auth check timeout'
+        );
 
-      const { data: supplier, error } = await supabase
-        .from('suppliers')
-        .insert({
-          user_id: user.id,
-          business_id: businessIdToUse,
+        if (!user) {
+          throw new Error('You must be logged in to create suppliers');
+        }
+
+        const businessIdToUse = businessId || await getOrCreateBusinessId(user.id);
+        if (!businessIdToUse) throw new Error('Failed to get business');
+
+        const supplier = await withNetworkTimeout((async () => {
+          const { data: created, error } = await supabase
+            .from('suppliers')
+            .insert({
+              user_id: user.id,
+              business_id: businessIdToUse,
+              branch_id: supplierData.branch_id || null,
+              ...supplierData
+            })
+            .select()
+            .single();
+
+          if (error) throw error;
+          return created;
+        })(), 3500, 'Network timeout creating supplier');
+
+        return supplier;
+      } catch (err: any) {
+        console.warn('Network call failed, saving supplier offline:', err);
+        const localSupplier = await recordOfflineSupplier({
+          business_id: bId,
+          name: supplierData.name,
+          phone: supplierData.phone,
+          notes: supplierData.notes,
+        });
+        return {
+          id: localSupplier.id,
+          user_id: '',
+          business_id: bId,
           branch_id: supplierData.branch_id || null,
-          ...supplierData
-        })
-        .select()
-        .single()
-
-      if (error) throw error
-      return supplier
+          name: localSupplier.name,
+          phone: localSupplier.phone || undefined,
+          location: supplierData.location,
+          product_category: supplierData.product_category,
+          notes: supplierData.notes,
+          current_balance: 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          is_offline: true,
+          synced: false,
+        } as Supplier;
+      }
     },
     onMutate: async (newSupplier): Promise<MutationContext> => {
       await queryClient.cancelQueries({ queryKey })
@@ -191,11 +253,19 @@ export function useSuppliers(businessId?: string) {
         variant: "destructive"
       })
     },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Supplier created successfully"
-      })
+    onSuccess: (result: any) => {
+      const isDeviceOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+      if (isDeviceOffline || result?.is_offline || result?.synced === false) {
+        toast({
+          title: "Supplier Saved Locally (Offline)",
+          description: "Supplier stored securely on device. Will automatically sync to server when online.",
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: "Supplier created successfully"
+        });
+      }
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey })
