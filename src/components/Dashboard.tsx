@@ -17,7 +17,7 @@ import { useLanguage } from '@/contexts/LanguageContext'
 import { useBranchContext } from '@/contexts/BranchContext'
 import { useMemo } from 'react'
 import { Badge } from '@/components/ui/badge'
-import { getBusinessArchetype, ARCHETYPE_CONFIGS, BUSINESS_TYPES } from '@/lib/businessArchetypes'
+import { getBusinessArchetype, ARCHETYPE_CONFIGS, BUSINESS_TYPES, getArchetypeConfig, isProfessionalServices } from '@/lib/businessArchetypes'
 
 export function Dashboard() {
   const { t, language } = useLanguage()
@@ -34,8 +34,12 @@ export function Dashboard() {
     return getBusinessArchetype(business?.business_type)
   }, [business?.business_type])
 
-  const archetypeConfig = ARCHETYPE_CONFIGS[archetype]
+  const archetypeConfig = useMemo(() => {
+    return getArchetypeConfig(business?.business_type)
+  }, [business?.business_type])
+
   const currentTypeOption = BUSINESS_TYPES.find(b => b.value === business?.business_type)
+  const isPro = isProfessionalServices(business?.business_type)
 
   // Calculate total inventory valuation if totalValue is not exported directly
   const calculatedInventoryValue = useMemo(() => {
@@ -121,15 +125,15 @@ export function Dashboard() {
           period: archetypeConfig.metric1Period
         },
         {
-          title: archetypeConfig.metric2Title, // e.g. "Jobs & Bookings Done"
+          title: archetypeConfig.metric2Title, // e.g. "Jobs & Bookings Done" or "Billable Engagements"
           value: totalJobsCompleted.toString(),
-          change: totalJobsCompleted > 0 ? `+${totalJobsCompleted} jobs` : '0 jobs',
+          change: totalJobsCompleted > 0 ? `+${totalJobsCompleted} ${isPro ? 'engagements' : 'jobs'}` : `0 ${isPro ? 'engagements' : 'jobs'}`,
           trend: 'up' as const,
           icon: CheckCircle2,
           period: archetypeConfig.metric2Period
         },
         {
-          title: archetypeConfig.metric3Title, // e.g. "Active Clients"
+          title: archetypeConfig.metric3Title, // e.g. "Active Clients" or "Active Client Accounts"
           value: (customers || []).length.toString(),
           change: (customers || []).length > 0 ? '+' + Math.round(customers.length * 0.1) : '0',
           trend: 'up' as const,
@@ -139,7 +143,7 @@ export function Dashboard() {
         {
           title: archetypeConfig.metric4Title, // e.g. "Outstanding Invoices"
           value: formatCurrency(pendingInvoiceAmount),
-          change: `${(pendingInvoices || []).length} client bills`,
+          change: `${(pendingInvoices || []).length} ${isPro ? 'pending invoices' : 'client bills'}`,
           trend: pendingInvoiceAmount > 0 ? 'down' as const : 'up' as const,
           icon: CreditCard,
           period: archetypeConfig.metric4Period

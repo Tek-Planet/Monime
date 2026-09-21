@@ -171,10 +171,19 @@ export const BUSINESS_TYPES: BusinessTypeOption[] = [
     defaultUnits: ['Job', 'Labor Hour', 'Service', 'Repair', 'Part'],
   },
   {
-    value: 'consulting_pro',
-    label: 'Consulting & Professional Services',
+    value: 'professional_services',
+    label: 'Professional Services',
     archetype: 'service',
-    description: 'Legal, accounting, marketing, advisory, and tech services',
+    description: 'Legal, accounting, advisory, consulting, marketing, and IT firms',
+    iconName: 'Briefcase',
+    starterCategories: ['Consultation Sessions', 'Monthly Retainers', 'Project Deliverables', 'Document Review', 'Advisory & Strategy', 'Audits & Compliance'],
+    defaultUnits: ['Hour', 'Project', 'Session', 'Retainer Month', 'Document', 'Contract'],
+  },
+  {
+    value: 'consulting_pro',
+    label: 'Consulting & Advisory',
+    archetype: 'service',
+    description: 'Management consulting, strategy, and business advisory',
     iconName: 'Briefcase',
     starterCategories: ['Consultation Sessions', 'Monthly Retainers', 'Project Deliverables', 'Document Review', 'Advisory & Strategy', 'Training & Workshops'],
     defaultUnits: ['Hour', 'Project', 'Session', 'Retainer Month', 'Document'],
@@ -398,3 +407,114 @@ export const ARCHETYPE_CONFIGS: Record<BusinessArchetype, ArchetypeConfig> = {
     ],
   },
 };
+
+export function isProfessionalServices(businessType?: string | null): boolean {
+  if (!businessType) return false;
+  const t = businessType.toLowerCase().trim();
+  return (
+    t === 'professional_services' ||
+    t === 'consulting_pro' ||
+    t === 'professional' ||
+    t === 'services_professional' ||
+    t.includes('professional') ||
+    t.includes('consult') ||
+    t.includes('legal') ||
+    t.includes('advisory') ||
+    t.includes('accounting')
+  );
+}
+
+export interface QuickAccessModuleItem {
+  label: string;
+  description: string;
+  iconName: 'FileText' | 'TrendingUp' | 'Users' | 'Briefcase' | 'Clock' | 'Receipt' | 'CreditCard' | 'BarChart3' | 'Utensils' | 'Package' | 'Truck';
+  route: string;
+  color: string;
+}
+
+export function getQuickAccessModules(businessType?: string | null): QuickAccessModuleItem[] {
+  if (isProfessionalServices(businessType)) {
+    return [
+      { label: 'Client Invoices', description: 'Bill clients for fees, hours & retainers', iconName: 'FileText', route: '/invoices', color: 'bg-amber-500/10 text-amber-600' },
+      { label: 'Billable Fees', description: 'Record consultations, milestones & fees', iconName: 'TrendingUp', route: '/sales', color: 'bg-emerald-500/10 text-emerald-600' },
+      { label: 'Client Roster', description: 'Corporate accounts & key contacts', iconName: 'Users', route: '/customers', color: 'bg-violet-500/10 text-violet-600' },
+      { label: 'Fee Schedule', description: 'Hourly rates, retainers & service packages', iconName: 'Briefcase', route: '/inventory', color: 'bg-blue-500/10 text-blue-600' },
+      { label: 'Staff Timesheets', description: 'Associate billable hours & shift records', iconName: 'Clock', route: '/attendance', color: 'bg-indigo-500/10 text-indigo-600' },
+      { label: 'Practice Expenses', description: 'Office overhead & operational disbursements', iconName: 'Receipt', route: '/expenses', color: 'bg-red-500/10 text-red-600' },
+      { label: 'Client Receivables', description: 'Client credit lines, retainers & aging bills', iconName: 'CreditCard', route: '/credit', color: 'bg-purple-500/10 text-purple-600' },
+      { label: 'Practice Reports', description: 'Billings, revenue & financial performance', iconName: 'BarChart3', route: '/reports', color: 'bg-cyan-500/10 text-cyan-600' },
+    ];
+  }
+
+  const archetype = getBusinessArchetype(businessType);
+
+  if (archetype === 'food') {
+    return [
+      { label: 'Take Orders', description: 'Record meal or drink sale', iconName: 'Utensils', route: '/sales', color: 'bg-orange-500/10 text-orange-600' },
+      { label: 'Menu & Stock', description: 'Dishes, beverages & recipes', iconName: 'Package', route: '/inventory', color: 'bg-emerald-500/10 text-emerald-600' },
+      { label: 'Table Bills', description: 'Create food order invoice', iconName: 'FileText', route: '/invoices', color: 'bg-amber-500/10 text-amber-600' },
+      { label: 'Staff Shifts', description: 'Team attendance & timesheets', iconName: 'Users', route: '/attendance', color: 'bg-indigo-500/10 text-indigo-600' },
+      { label: 'Diners', description: 'Manage customer accounts', iconName: 'Users', route: '/customers', color: 'bg-violet-500/10 text-violet-600' },
+      { label: 'Kitchen Costs', description: 'Track ingredients & supplies', iconName: 'Receipt', route: '/expenses', color: 'bg-red-500/10 text-red-600' },
+      { label: 'Food Reports', description: 'Orders & menu analytics', iconName: 'BarChart3', route: '/reports', color: 'bg-cyan-500/10 text-cyan-600' },
+      { label: 'Food Suppliers', description: 'Wholesale deliveries & stock', iconName: 'Truck', route: '/suppliers', color: 'bg-blue-500/10 text-blue-600' },
+    ];
+  }
+
+  if (archetype === 'service') {
+    return [
+      { label: 'Service Jobs', description: 'Log completed service job', iconName: 'TrendingUp', route: '/sales', color: 'bg-emerald-500/10 text-emerald-600' },
+      { label: 'Client Invoices', description: 'Bill client for services', iconName: 'FileText', route: '/invoices', color: 'bg-amber-500/10 text-amber-600' },
+      { label: 'Staff Shifts', description: 'Team attendance & shifts', iconName: 'Users', route: '/attendance', color: 'bg-indigo-500/10 text-indigo-600' },
+      { label: 'Client Roster', description: 'Customer directory & notes', iconName: 'Users', route: '/customers', color: 'bg-violet-500/10 text-violet-600' },
+      { label: 'Service Rates', description: 'Offerings, fees & service catalog', iconName: 'Briefcase', route: '/inventory', color: 'bg-blue-500/10 text-blue-600' },
+      { label: 'Job Expenses', description: 'Materials, tools & expenses', iconName: 'Receipt', route: '/expenses', color: 'bg-red-500/10 text-red-600' },
+      { label: 'Performance', description: 'Service revenue analytics', iconName: 'BarChart3', route: '/reports', color: 'bg-cyan-500/10 text-cyan-600' },
+      { label: 'Vendors', description: 'Parts & supply partners', iconName: 'Truck', route: '/suppliers', color: 'bg-orange-500/10 text-orange-600' },
+    ];
+  }
+
+  // Retail / Goods default
+  return [
+    { label: 'Quick Sale', description: 'Record store sale', iconName: 'TrendingUp', route: '/sales', color: 'bg-emerald-500/10 text-emerald-600' },
+    { label: 'Products', description: 'Manage stock & catalog', iconName: 'Package', route: '/inventory', color: 'bg-blue-500/10 text-blue-600' },
+    { label: 'Invoices', description: 'Customer credit & invoices', iconName: 'FileText', route: '/invoices', color: 'bg-amber-500/10 text-amber-600' },
+    { label: 'Staff Shifts', description: 'Shift attendance & hours', iconName: 'Users', route: '/attendance', color: 'bg-indigo-500/10 text-indigo-600' },
+    { label: 'Shoppers', description: 'Registered customers', iconName: 'Users', route: '/customers', color: 'bg-violet-500/10 text-violet-600' },
+    { label: 'Expenses', description: 'Store operating costs', iconName: 'Receipt', route: '/expenses', color: 'bg-red-500/10 text-red-600' },
+    { label: 'Reports', description: 'Sales & profit analytics', iconName: 'BarChart3', route: '/reports', color: 'bg-cyan-500/10 text-cyan-600' },
+    { label: 'Suppliers', description: 'Wholesale suppliers', iconName: 'Truck', route: '/suppliers', color: 'bg-orange-500/10 text-orange-600' },
+  ];
+}
+
+export function getArchetypeConfig(businessType?: string | null): ArchetypeConfig {
+  if (isProfessionalServices(businessType)) {
+    return {
+      archetype: 'service',
+      title: 'Professional Services',
+      badge: '💼 Professional Services',
+      tagline: 'Tailored for client billing, retainers, hourly rates, and professional invoicing',
+      itemsLabel: 'Fee Schedule & Rates',
+      salesLabel: 'Client Engagements & Retainers',
+      unitsLabel: 'Hours / Retainers / Projects',
+      metric1Title: 'Fee & Retainer Revenue',
+      metric1Period: 'from client engagements',
+      metric2Title: 'Billable Engagements',
+      metric2Period: 'active projects & retainers',
+      metric3Title: 'Active Client Accounts',
+      metric3Period: 'corporate client roster',
+      metric4Title: 'Outstanding Invoices',
+      metric4Period: 'unsettled client receivables',
+      quickActions: [
+        { title: 'Client Invoice', description: 'Bill client for services & retainers', route: '/invoices', icon: 'FileText' },
+        { title: 'Record Billable Fee', description: 'Log consultation or retainer payment', route: '/sales', icon: 'CheckCircle' },
+        { title: 'Client Accounts', description: 'Manage corporate client roster', route: '/customers', icon: 'UserPlus' },
+        { title: 'Fee Schedule', description: 'Configure hourly rates & packages', route: '/inventory', icon: 'Briefcase' },
+      ],
+    };
+  }
+
+  const archetype = getBusinessArchetype(businessType);
+  return ARCHETYPE_CONFIGS[archetype];
+}
+

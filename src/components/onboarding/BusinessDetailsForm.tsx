@@ -19,15 +19,38 @@ import {
   ShoppingBag,
   TrendingUp,
   Package,
-  FileText
+  FileText,
+  Users,
+  Clock,
+  Receipt,
+  CreditCard,
+  BarChart3,
+  Truck
 } from 'lucide-react'
 import { LocationPicker } from '@/components/maps/LocationPicker'
 import { 
   BUSINESS_TYPES, 
   BusinessArchetype, 
   getBusinessArchetype, 
-  ARCHETYPE_CONFIGS 
+  ARCHETYPE_CONFIGS,
+  getArchetypeConfig,
+  getQuickAccessModules,
+  isProfessionalServices
 } from '@/lib/businessArchetypes'
+
+const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+  FileText,
+  TrendingUp,
+  Users,
+  Briefcase,
+  Clock,
+  Receipt,
+  CreditCard,
+  BarChart3,
+  Utensils,
+  Package,
+  Truck,
+}
 
 interface BusinessDetailsFormProps {
   onComplete: (data: {
@@ -68,7 +91,9 @@ export function BusinessDetailsForm({ onComplete, loading = false }: BusinessDet
   // Filter business types based on chosen archetype
   const filteredTypes = BUSINESS_TYPES.filter(t => t.archetype === selectedArchetype)
   const currentTypeConfig = BUSINESS_TYPES.find(t => t.value === businessType) || filteredTypes[0]
-  const archetypeConfig = ARCHETYPE_CONFIGS[selectedArchetype]
+  const archetypeConfig = getArchetypeConfig(businessType || selectedArchetype)
+  const quickAccessModules = getQuickAccessModules(businessType || selectedArchetype)
+  const isPro = isProfessionalServices(businessType)
 
   const handleArchetypeSelect = (arch: BusinessArchetype) => {
     setSelectedArchetype(arch)
@@ -296,53 +321,94 @@ export function BusinessDetailsForm({ onComplete, loading = false }: BusinessDet
             </div>
 
             {/* Section 3: Live Personalization Preview Banner */}
-            <div className="p-4 rounded-xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20">
+            <div className="p-4 rounded-xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 space-y-3">
               <div className="flex items-start gap-3">
                 <div className="p-2 rounded-lg bg-primary text-primary-foreground shrink-0 mt-0.5">
                   <Sparkles className="w-4 h-4" />
                 </div>
-                <div className="space-y-1.5 flex-1">
+                <div className="space-y-1.5 flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-xs font-bold text-foreground">Tailored Dashboard Preview:</span>
                     <Badge variant="outline" className="text-[10px] py-0 px-2 bg-background/80 border-primary/30 text-primary font-bold">
                       {currentTypeConfig.label}
                     </Badge>
+                    {isPro && (
+                      <Badge className="text-[10px] py-0 px-1.5 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30">
+                        Professional Suite
+                      </Badge>
+                    )}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {archetypeConfig.tagline}
                   </p>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2">
-                    <div className="p-2 rounded-md bg-background/80 border border-border/50">
-                      <span className="text-[10px] text-muted-foreground block font-medium">Metric 1</span>
-                      <span className="text-xs font-bold text-foreground truncate block">{archetypeConfig.metric1Title}</span>
-                    </div>
-                    <div className="p-2 rounded-md bg-background/80 border border-border/50">
-                      <span className="text-[10px] text-muted-foreground block font-medium">Metric 2</span>
-                      <span className="text-xs font-bold text-foreground truncate block">{archetypeConfig.metric2Title}</span>
-                    </div>
-                    <div className="p-2 rounded-md bg-background/80 border border-border/50">
-                      <span className="text-[10px] text-muted-foreground block font-medium">Metric 3</span>
-                      <span className="text-xs font-bold text-foreground truncate block">{archetypeConfig.metric3Title}</span>
-                    </div>
-                    <div className="p-2 rounded-md bg-background/80 border border-border/50">
-                      <span className="text-[10px] text-muted-foreground block font-medium">Metric 4</span>
-                      <span className="text-xs font-bold text-foreground truncate block">{archetypeConfig.metric4Title}</span>
-                    </div>
-                  </div>
-
-                  {currentTypeConfig.defaultUnits?.length > 0 && (
-                    <div className="pt-1 flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[10px] font-medium text-muted-foreground">Common units:</span>
-                      {currentTypeConfig.defaultUnits.slice(0, 4).map((unit) => (
-                        <span key={unit} className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-foreground/80 font-medium">
-                          {unit}
-                        </span>
-                      ))}
-                    </div>
-                  )}
                 </div>
               </div>
+
+              {/* Tailored Metrics Preview */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="p-2 rounded-md bg-background/80 border border-border/50">
+                  <span className="text-[10px] text-muted-foreground block font-medium">Metric 1</span>
+                  <span className="text-xs font-bold text-foreground truncate block">{archetypeConfig.metric1Title}</span>
+                </div>
+                <div className="p-2 rounded-md bg-background/80 border border-border/50">
+                  <span className="text-[10px] text-muted-foreground block font-medium">Metric 2</span>
+                  <span className="text-xs font-bold text-foreground truncate block">{archetypeConfig.metric2Title}</span>
+                </div>
+                <div className="p-2 rounded-md bg-background/80 border border-border/50">
+                  <span className="text-[10px] text-muted-foreground block font-medium">Metric 3</span>
+                  <span className="text-xs font-bold text-foreground truncate block">{archetypeConfig.metric3Title}</span>
+                </div>
+                <div className="p-2 rounded-md bg-background/80 border border-border/50">
+                  <span className="text-[10px] text-muted-foreground block font-medium">Metric 4</span>
+                  <span className="text-xs font-bold text-foreground truncate block">{archetypeConfig.metric4Title}</span>
+                </div>
+              </div>
+
+              {/* Tailored Quick Access preview */}
+              <div className="pt-1">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    <span>Tailored Quick Access:</span>
+                  </span>
+                  <span className="text-[10px] text-muted-foreground font-medium">
+                    {isPro ? 'Relevant to professional service businesses' : `Aligned with ${currentTypeConfig.label}`}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {quickAccessModules.map((mod) => {
+                    const IconComponent = ICON_MAP[mod.iconName] || Briefcase
+                    return (
+                      <div
+                        key={mod.label + mod.route}
+                        className="flex items-center gap-2 p-2 rounded-lg bg-background/90 border border-border/50 transition-all shadow-2xs hover:border-primary/40"
+                      >
+                        <div className={`p-1.5 rounded-md shrink-0 ${mod.color}`}>
+                          <IconComponent className="h-3.5 w-3.5" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <span className="text-[11px] font-semibold text-foreground truncate block leading-tight">
+                            {mod.label}
+                          </span>
+                          <span className="text-[9px] text-muted-foreground truncate block leading-tight">
+                            {mod.description}
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {currentTypeConfig.defaultUnits?.length > 0 && (
+                <div className="pt-1.5 flex items-center gap-1.5 flex-wrap border-t border-border/40">
+                  <span className="text-[10px] font-medium text-muted-foreground">Common billing units:</span>
+                  {currentTypeConfig.defaultUnits.slice(0, 5).map((unit) => (
+                    <span key={unit} className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-foreground/80 font-medium">
+                      {unit}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
 
             <Button
