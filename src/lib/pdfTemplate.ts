@@ -238,7 +238,7 @@ export async function createModernPDFDocument(config: PDFDocumentConfig): Promis
 
   // 7. Party Card Box (Bill To / Customer / Supplier Details)
   const party = config.customer || config.supplier;
-  if (party && (party.name || party.phone || party.email)) {
+  if (party && (party.name || party.phone || party.email || party.address)) {
     const boxHeight = 22;
     doc.setFillColor(248, 250, 252); // #F8FAFC
     doc.setDrawColor(226, 232, 240);

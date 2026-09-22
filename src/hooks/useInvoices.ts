@@ -30,6 +30,7 @@ export interface Invoice {
     name: string
     email?: string
     phone?: string
+    address?: string
   }
   invoice_items?: InvoiceItem[]
 }
@@ -68,7 +69,7 @@ const fetchInvoicesData = async (businessId?: string, branchId?: string | null):
       .from('invoices')
       .select(`
         *,
-        customer:customers(id, name, email, phone),
+        customer:customers(id, name, email, phone, address),
         invoice_items(*)
       `)
 

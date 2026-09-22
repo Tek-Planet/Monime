@@ -513,7 +513,16 @@ const Invoices = () => {
 
       <CreateInvoiceModal open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen} onInvoiceCreated={refetch} />
 
-      <ViewInvoiceModal invoice={selectedInvoice} open={isViewModalOpen} onOpenChange={setIsViewModalOpen} />
+      <ViewInvoiceModal
+        invoice={selectedInvoice}
+        open={isViewModalOpen}
+        onOpenChange={setIsViewModalOpen}
+        onRecordPayment={(inv) => {
+          setSelectedInvoice(inv);
+          setIsViewModalOpen(false);
+          setIsPaymentModalOpen(true);
+        }}
+      />
 
       <EditInvoiceModal
         invoice={selectedInvoice}
