@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Progress } from '@/components/ui/progress'
 import { useToast } from '@/hooks/use-toast'
 import { 
   Building2, 
@@ -25,7 +26,8 @@ import {
   Receipt,
   CreditCard,
   BarChart3,
-  Truck
+  Truck,
+  CheckCircle2
 } from 'lucide-react'
 import { LocationPicker } from '@/components/maps/LocationPicker'
 import { 
@@ -65,9 +67,10 @@ interface BusinessDetailsFormProps {
     referralCode?: string
   }) => void
   loading?: boolean
+  onProgressUpdate?: (percent: number) => void
 }
 
-export function BusinessDetailsForm({ onComplete, loading = false }: BusinessDetailsFormProps) {
+export function BusinessDetailsForm({ onComplete, loading = false, onProgressUpdate }: BusinessDetailsFormProps) {
   const [activeTab, setActiveTab] = useState<'category' | 'details'>('category')
   const [selectedArchetype, setSelectedArchetype] = useState<BusinessArchetype>('retail')
   const [businessType, setBusinessType] = useState('provision_store')
@@ -80,6 +83,44 @@ export function BusinessDetailsForm({ onComplete, loading = false }: BusinessDet
   const [longitude, setLongitude] = useState<number | undefined>()
   const [referralCode, setReferralCode] = useState('')
   const { toast } = useToast()
+
+  // Track completion of the 5 profile sections (0% to 100%):
+  const sectionStatus = useMemo(() => {
+    const isCategorySelected = Boolean(selectedArchetype)
+    const isTypeSelected = Boolean(businessType)
+    const isIdentityEntered = businessName.trim().length > 0
+    const isContactEntered = phone.trim().length > 0
+    const isLocationEntered = address.trim().length > 0 || latitude !== undefined
+
+    const sections = [
+      { id: 'category', label: 'Category', completed: isCategorySelected, weight: 20 },
+      { id: 'type', label: 'Type', completed: isTypeSelected, weight: 20 },
+      { id: 'identity', label: 'Name', completed: isIdentityEntered, weight: 20 },
+      { id: 'contact', label: 'Contact', completed: isContactEntered, weight: 20 },
+      { id: 'location', label: 'Location', completed: isLocationEntered, weight: 20 },
+    ]
+
+    const percent = sections.reduce((acc, sec) => acc + (sec.completed ? sec.weight : 0), 0)
+
+    let helperText = "Select your business category to begin tailoring features"
+    if (percent < 40) {
+      helperText = "Pick your specific business type for tailored metrics & tools"
+    } else if (percent < 60) {
+      helperText = "Enter your business name to personalize your workspace"
+    } else if (percent < 80) {
+      helperText = "Provide your phone number to receive alerts and invoices"
+    } else if (percent < 100) {
+      helperText = "Add your address or pin shop location to finish"
+    } else {
+      helperText = "All profile sections completed! Ready to launch your dashboard 🚀"
+    }
+
+    return { sections, percent, helperText }
+  }, [selectedArchetype, businessType, businessName, phone, address, latitude])
+
+  useEffect(() => {
+    onProgressUpdate?.(sectionStatus.percent)
+  }, [sectionStatus.percent, onProgressUpdate])
 
   const currencies = [
     { value: 'SLL', label: 'Sierra Leonean Leone (SLL)' },
@@ -159,8 +200,50 @@ export function BusinessDetailsForm({ onComplete, loading = false }: BusinessDet
           Tailor MiBuks with customized metrics and features built specifically for your industry.
         </CardDescription>
 
+        {/* Real-time Percentage-Based Profile Progress Tracker */}
+        <div className="pt-4 pb-1 px-1 sm:px-2 space-y-2.5">
+          <div className="flex items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center justify-center font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs border border-primary/20">
+                {sectionStatus.percent}% Completed
+              </span>
+              <span className="font-semibold text-foreground hidden sm:inline">
+                Profile Setup Progress
+              </span>
+            </div>
+            <span className="text-[11px] font-medium text-muted-foreground">
+              {sectionStatus.sections.filter(s => s.completed).length} / {sectionStatus.sections.length} Sections
+            </span>
+          </div>
+
+          <div className="relative">
+            <Progress value={sectionStatus.percent} className="h-2.5 bg-muted/80" />
+          </div>
+
+          {/* Section pills */}
+          <div className="grid grid-cols-5 gap-1.5 pt-0.5">
+            {sectionStatus.sections.map((sec) => (
+              <div
+                key={sec.id}
+                className={`flex items-center justify-center gap-1 py-1 px-1 rounded-md text-[10px] font-semibold transition-all border ${
+                  sec.completed
+                    ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30'
+                    : 'bg-muted/40 text-muted-foreground border-border/50'
+                }`}
+              >
+                <span>{sec.completed ? '✓' : '○'}</span>
+                <span className="truncate">{sec.label}</span>
+              </div>
+            ))}
+          </div>
+
+          <p className="text-[11px] text-muted-foreground text-center font-medium">
+            {sectionStatus.helperText}
+          </p>
+        </div>
+
         {/* Step Indicator */}
-        <div className="flex items-center justify-center gap-3 pt-3">
+        <div className="flex items-center justify-center gap-3 pt-2">
           <button
             type="button"
             onClick={() => setActiveTab('category')}
@@ -170,7 +253,9 @@ export function BusinessDetailsForm({ onComplete, loading = false }: BusinessDet
                 : 'bg-muted text-muted-foreground hover:text-foreground'
             }`}
           >
-            <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px]">1</span>
+            <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px]">
+              {sectionStatus.sections[0].completed && sectionStatus.sections[1].completed ? '✓' : '1'}
+            </span>
             Industry & Personalization
           </button>
           <div className="w-6 h-0.5 bg-border" />
@@ -183,7 +268,9 @@ export function BusinessDetailsForm({ onComplete, loading = false }: BusinessDet
                 : 'bg-muted text-muted-foreground hover:text-foreground'
             }`}
           >
-            <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px]">2</span>
+            <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px]">
+              {sectionStatus.sections[2].completed && sectionStatus.sections[3].completed && sectionStatus.sections[4].completed ? '✓' : '2'}
+            </span>
             Business Details
           </button>
         </div>
@@ -441,9 +528,16 @@ export function BusinessDetailsForm({ onComplete, loading = false }: BusinessDet
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="businessName" className="text-xs font-bold text-foreground">
-                Business Name *
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="businessName" className="text-xs font-bold text-foreground">
+                  Business Name *
+                </Label>
+                {businessName.trim() && (
+                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                    <Check className="w-3 h-3 stroke-[3]" /> Section Completed (+20%)
+                  </span>
+                )}
+              </div>
               <Input
                 id="businessName"
                 placeholder="e.g. Salone Fresh Kitchen / City Provisions"
@@ -474,9 +568,16 @@ export function BusinessDetailsForm({ onComplete, loading = false }: BusinessDet
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="address" className="text-xs font-bold text-foreground">
-                Business Address
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="address" className="text-xs font-bold text-foreground">
+                  Business Address
+                </Label>
+                {(address.trim() || latitude !== undefined) && (
+                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                    <Check className="w-3 h-3 stroke-[3]" /> Section Completed (+20%)
+                  </span>
+                )}
+              </div>
               <Textarea
                 id="address"
                 placeholder="Street address, market zone, or city location"
@@ -490,9 +591,16 @@ export function BusinessDetailsForm({ onComplete, loading = false }: BusinessDet
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="businessPhone" className="text-xs font-bold text-foreground">
-                  Business Phone
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="businessPhone" className="text-xs font-bold text-foreground">
+                    Business Phone
+                  </Label>
+                  {phone.trim() && (
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                      <Check className="w-3 h-3 stroke-[3]" /> Completed (+20%)
+                    </span>
+                  )}
+                </div>
                 <Input
                   id="businessPhone"
                   type="tel"

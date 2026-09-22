@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { UserDetailsForm } from '@/components/onboarding/UserDetailsForm'
 import { BusinessDetailsForm } from '@/components/onboarding/BusinessDetailsForm'
@@ -17,6 +17,8 @@ export default function Onboarding() {
   const [currentStep, setCurrentStep] = useState<OnboardingStep>('user-details')
   const [loading, setLoading] = useState(false)
   const [isInvitedMember, setIsInvitedMember] = useState(false)
+  const [userProfileProgress, setUserProfileProgress] = useState(0)
+  const [businessProfileProgress, setBusinessProfileProgress] = useState(40)
   const [userDetails, setUserDetails] = useState<{
     firstName: string
     lastName: string
@@ -65,7 +67,19 @@ export default function Onboarding() {
   ]
 
   const currentStepIndex = steps.findIndex(step => step.id === currentStep)
-  const progress = ((currentStepIndex + 1) / steps.length) * 100
+  
+  // Real-time dynamic progress calculation from 0% to 100%
+  const overallProgress = useMemo(() => {
+    if (currentStep === 'complete') return 100
+    if (currentStep === 'user-details') {
+      // Step 1: Personal profile accounts for 0% to 35%
+      return Math.min(35, Math.round((userProfileProgress / 100) * 35))
+    }
+    // Step 2: Business profile accounts for 35% to 100%
+    const base = 35
+    const added = Math.round((businessProfileProgress / 100) * 65)
+    return Math.min(100, Math.max(base, base + added))
+  }, [currentStep, userProfileProgress, businessProfileProgress])
 
   const handleUserDetailsComplete = async (data: { firstName: string; lastName: string; phone: string }) => {
     setUserDetails(data)
@@ -101,10 +115,10 @@ export default function Onboarding() {
         setTimeout(() => {
           navigate('/', { replace: true })
         }, 300)
-      } catch (error: any) {
+      } catch (error: unknown) {
         toast({
           title: t("onboarding.setupFailed"),
-          description: error.message || t("onboarding.setupFailedDesc"),
+          description: (error instanceof Error ? error.message : undefined) || t("onboarding.setupFailedDesc"),
           variant: "destructive"
         })
       } finally {
@@ -205,10 +219,10 @@ export default function Onboarding() {
         throw new Error("Failed to complete onboarding setup")
       }
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: t("onboarding.setupFailed"),
-        description: error.message || t("onboarding.setupFailedDesc"),
+        description: (error instanceof Error ? error.message : undefined) || t("onboarding.setupFailedDesc"),
         variant: "destructive"
       })
     } finally {
@@ -229,6 +243,7 @@ export default function Onboarding() {
           <UserDetailsForm
             onComplete={handleUserDetailsComplete}
             loading={loading}
+            onProgressUpdate={setUserProfileProgress}
           />
         )
       case 'business-details':
@@ -236,6 +251,7 @@ export default function Onboarding() {
           <BusinessDetailsForm
             onComplete={handleBusinessDetailsComplete}
             loading={loading}
+            onProgressUpdate={setBusinessProfileProgress}
           />
         )
       case 'complete':
@@ -273,13 +289,38 @@ export default function Onboarding() {
             )}
           </div>
           
-          {/* Progress */}
-          <div className="space-y-2">
-            <div className="flex justify-between text-xs sm:text-sm text-muted-foreground">
-              <span>{t("onboarding.step")} {currentStepIndex + 1} {t("onboarding.of")} {steps.length}</span>
-              <span>{Math.round(progress)}% {t("onboarding.complete")}</span>
+          {/* Real-time Percentage-Based Progress Tracker */}
+          <div className="space-y-3 p-4 rounded-xl bg-card border border-border/70 shadow-xs mb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-sm text-foreground">
+                  {currentStep === 'user-details' && "Step 1 of 2: Personal Profile"}
+                  {currentStep === 'business-details' && "Step 2 of 2: Business & Operations Profile"}
+                  {currentStep === 'complete' && "Onboarding Completed"}
+                </span>
+                <span className="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                  {overallProgress === 100 ? "Ready to Launch 🚀" : "Live Setup"}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 self-end sm:self-auto">
+                <span className="text-xs text-muted-foreground font-medium">Profile Completion:</span>
+                <span className="font-extrabold text-primary text-base tabular-nums">
+                  {overallProgress}%
+                </span>
+              </div>
             </div>
-            <Progress value={progress} className="h-1.5 sm:h-2" />
+
+            <Progress value={overallProgress} className="h-2.5 sm:h-3 bg-muted" />
+
+            <div className="flex items-center justify-between text-[11px] text-muted-foreground font-medium pt-0.5">
+              <span>0% Start</span>
+              <span className="hidden sm:inline text-center text-foreground/80 font-medium">
+                {currentStep === 'user-details'
+                  ? "Enter your name & phone to unlock tailored business setup"
+                  : "Complete business details to launch your customized workspace"}
+              </span>
+              <span>100% Launch</span>
+            </div>
           </div>
 
           {/* Steps */}
