@@ -47,13 +47,15 @@ export function Layout() {
 
   // Show back button on sub-routes (more than one segment after the root)
   // Adjust the condition based on your route structure if needed
-const isSubScreen = location.pathname !== '/';
+  const isSubScreen = location.pathname !== '/';
   const handleBack = () => {
     navigate(-1)
   }
 
+  const isWideScreen = typeof window !== 'undefined' ? window.innerWidth >= 1024 : true
+
   return (
-    <SidebarProvider defaultOpen={true}>
+    <SidebarProvider defaultOpen={isWideScreen}>
       <div className="min-h-screen flex w-full bg-gradient-subtle">
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0">

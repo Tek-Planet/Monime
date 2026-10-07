@@ -142,17 +142,19 @@ export default function AttendancePage() {
 
       {/* Main Tabs Container */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="bg-muted/60 p-1 border">
-          <TabsTrigger value="overview" className="text-xs sm:text-sm">
-            Live Floor & Roster
-          </TabsTrigger>
-          <TabsTrigger value="timesheets" className="text-xs sm:text-sm">
-            All Timesheets & History
-          </TabsTrigger>
-          <TabsTrigger value="my-log" className="text-xs sm:text-sm">
-            My Attendance Log
-          </TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto">
+          <TabsList className="w-full sm:w-auto flex flex-nowrap overflow-x-auto bg-muted/60 p-1 border rounded-xl min-w-max">
+            <TabsTrigger value="overview" className="text-xs sm:text-sm px-4 py-2 min-h-[40px]">
+              Live Floor & Roster
+            </TabsTrigger>
+            <TabsTrigger value="timesheets" className="text-xs sm:text-sm px-4 py-2 min-h-[40px]">
+              All Timesheets & History
+            </TabsTrigger>
+            <TabsTrigger value="my-log" className="text-xs sm:text-sm px-4 py-2 min-h-[40px]">
+              My Attendance Log
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="overview" className="space-y-6">
           <LiveStaffRoster records={attendanceRecords} isLoading={isLoading} />

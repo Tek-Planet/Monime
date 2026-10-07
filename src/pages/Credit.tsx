@@ -99,11 +99,13 @@ export default function Credit() {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="overview">{t("credit.overview")}</TabsTrigger>
-          <TabsTrigger value="applications">{t("credit.loanApplications")}</TabsTrigger>
-          <TabsTrigger value="score">{t("credit.creditScore")}</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto">
+          <TabsList className="w-full sm:w-auto flex flex-nowrap overflow-x-auto min-w-max p-1 bg-muted/80 rounded-xl">
+            <TabsTrigger value="overview" className="min-h-[40px] px-4">{t("credit.overview")}</TabsTrigger>
+            <TabsTrigger value="applications" className="min-h-[40px] px-4">{t("credit.loanApplications")}</TabsTrigger>
+            <TabsTrigger value="score" className="min-h-[40px] px-4">{t("credit.creditScore")}</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="overview" className="space-y-6">
           {/* Credit Score Overview */}

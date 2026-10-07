@@ -18,7 +18,7 @@ import { TeamManagement } from '@/components/TeamManagement'
 import { BranchManagement } from '@/components/settings/BranchManagement'
 import { PinSettings } from '@/components/settings/PinSettings'
 import { LocationPicker } from '@/components/maps/LocationPicker'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useUserProfile } from '@/hooks/useUserProfile'
 import { useBusinessInfo } from '@/hooks/useBusinessInfo'
 import { useAuth } from '@/contexts/AuthContext'
@@ -43,9 +43,40 @@ const SettingsPage = () => {
   const [isSaving, setIsSaving] = useState(false)
   const [isEnablingBranches, setIsEnablingBranches] = useState(false)
   const [localPhotoUrl, setLocalPhotoUrl] = useState<string | null>(null)
+  const tabsContainerRef = useRef<HTMLDivElement>(null)
   
   // Check if branches are enabled for this business
   const branchesEnabled = (business as any)?.branches_enabled ?? false
+
+  const tabsList = useMemo(() => [
+    { value: 'profile', label: t('settings.profile') || 'Profile', icon: User },
+    { value: 'business', label: t('settings.business') || 'Business', icon: Settings },
+    ...(isOwner ? [{ value: 'team', label: t('settings.team') || 'Team', icon: Users }] : []),
+    ...(isOwner && branchesEnabled ? [{ value: 'branches', label: t('branches.management') || 'Branches', icon: Building2 }] : []),
+    { value: 'security', label: t('settings.security') || 'Security', icon: Shield },
+    { value: 'notifications', label: t('settings.notifications') || 'Notifications', icon: Bell },
+    { value: 'preferences', label: t('settings.preferences') || 'Preferences', icon: Palette },
+    { value: 'data', label: t('settings.data') || 'Data', icon: Database },
+  ], [t, isOwner, branchesEnabled])
+
+  // Auto-scroll the active tab into view when selected
+  useEffect(() => {
+    if (tabsContainerRef.current) {
+      const activeEl = tabsContainerRef.current.querySelector<HTMLElement>(`[data-value="${activeTab}"]`)
+      if (activeEl) {
+        activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+      }
+    }
+  }, [activeTab])
+
+  // Support direct linking via ?tab=...
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const tabParam = params.get('tab')
+    if (tabParam && tabsList.some(item => item.value === tabParam)) {
+      setActiveTab(tabParam)
+    }
+  }, [tabsList])
 
   // Profile form state
   const [profileForm, setProfileForm] = useState({
@@ -421,55 +452,66 @@ const SettingsPage = () => {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      
+    <div className="space-y-6 animate-fade-in max-w-7xl mx-auto">
+      {/* Settings Header with Responsive Controls */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-border/50">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground flex items-center gap-2.5">
+            <Settings className="h-7 w-7 text-primary" />
+            <span>{t("settings.title") || "Settings"}</span>
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {t("settings.description") || "Manage your account, business profile, branches, security and preferences"}
+          </p>
+        </div>
+
+        {/* Quick jump select dropdown for compact / split viewports */}
+        <div className="sm:hidden w-full">
+          <Select value={activeTab} onValueChange={setActiveTab}>
+            <SelectTrigger className="w-full h-11 bg-card border-border/70 rounded-xl font-medium">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {tabsList.map((tab) => {
+                const Icon = tab.icon
+                return (
+                  <SelectItem key={tab.value} value={tab.value}>
+                    <div className="flex items-center gap-2">
+                      <Icon className="h-4 w-4 text-primary" />
+                      <span>{tab.label}</span>
+                    </div>
+                  </SelectItem>
+                )
+              })}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <div className="overflow-x-auto">
-          <TabsList className={`inline-grid ${isOwner && branchesEnabled ? 'grid-cols-8' : isOwner ? 'grid-cols-7' : 'grid-cols-6'} min-w-full sm:min-w-0`}>
-            <TabsTrigger value="profile" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-              <User className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">{t("settings.profile")}</span>
-              <span className="sm:hidden">{t("settings.profile").substring(0, 4)}</span>
-            </TabsTrigger>
-            <TabsTrigger value="business" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-              <Settings className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">{t("settings.business")}</span>
-              <span className="sm:hidden">{t("settings.business").substring(0, 3)}</span>
-            </TabsTrigger>
-            {isOwner && (
-              <TabsTrigger value="team" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-                <Users className="h-3 w-3 sm:h-4 sm:w-4" />
-                {t("settings.team")}
-              </TabsTrigger>
-            )}
-            {/* Only show Branches tab when branches feature is enabled */}
-            {isOwner && branchesEnabled && (
-              <TabsTrigger value="branches" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-                <Building2 className="h-3 w-3 sm:h-4 sm:w-4" />
-                <span className="hidden sm:inline">{t("branches.management")}</span>
-                <span className="sm:hidden">Branch</span>
-              </TabsTrigger>
-            )}
-            <TabsTrigger value="security" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-              <Shield className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">{t("settings.security")}</span>
-              <span className="sm:hidden">{t("settings.security").substring(0, 3)}</span>
-            </TabsTrigger>
-            <TabsTrigger value="notifications" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-              <Bell className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">{t("settings.notifications")}</span>
-              <span className="sm:hidden">{t("settings.notifications").substring(0, 5)}</span>
-            </TabsTrigger>
-            <TabsTrigger value="preferences" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-              <Palette className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">{t("settings.preferences")}</span>
-              <span className="sm:hidden">{t("settings.preferences").substring(0, 4)}</span>
-            </TabsTrigger>
-            <TabsTrigger value="data" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-              <Database className="h-3 w-3 sm:h-4 sm:w-4" />
-              {t("settings.data")}
-            </TabsTrigger>
-          </TabsList>
+        {/* Responsive, touch-optimized tab bar - zero overlap, full Apple HIG 44pt touch targets */}
+        <div className="relative w-full">
+          <div
+            ref={tabsContainerRef}
+            className="flex items-center gap-2 p-1.5 bg-muted/80 backdrop-blur-md rounded-2xl border border-border/60 overflow-x-auto scrollbar-none overscroll-x-contain touch-pan-x shadow-xs"
+          >
+            <TabsList className="flex items-center gap-2 bg-transparent p-0 h-auto w-full min-w-max">
+              {tabsList.map((tab) => {
+                const Icon = tab.icon
+                return (
+                  <TabsTrigger
+                    key={tab.value}
+                    value={tab.value}
+                    data-value={tab.value}
+                    className="shrink-0 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all min-h-[44px] min-w-[44px] select-none touch-manipulation cursor-pointer border border-transparent whitespace-nowrap data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:border-border/60 data-[state=active]:font-semibold text-muted-foreground hover:text-foreground hover:bg-background/50"
+                  >
+                    <Icon className="h-4 w-4 shrink-0 text-muted-foreground data-[state=active]:text-primary" />
+                    <span>{tab.label}</span>
+                  </TabsTrigger>
+                )
+              })}
+            </TabsList>
+          </div>
         </div>
 
         {/* Profile Tab */}
@@ -958,6 +1000,7 @@ const SettingsPage = () => {
           </div>
           <Switch
             id="email-notifications"
+            className="shrink-0"
             checked={notifications.email}
             onCheckedChange={(checked) => setNotifications({ ...notifications, email: checked })}
           />
@@ -972,6 +1015,7 @@ const SettingsPage = () => {
           </div>
           <Switch
             id="sms-notifications"
+            className="shrink-0"
             checked={notifications.sms}
             onCheckedChange={(checked) => setNotifications({ ...notifications, sms: checked })}
           />
@@ -986,6 +1030,7 @@ const SettingsPage = () => {
           </div>
           <Switch
             id="low-stock"
+            className="shrink-0"
             checked={notifications.lowStock}
             onCheckedChange={(checked) => setNotifications({ ...notifications, lowStock: checked })}
           />
@@ -1000,6 +1045,7 @@ const SettingsPage = () => {
           </div>
           <Switch
             id="new-orders"
+            className="shrink-0"
             checked={notifications.newOrders}
             onCheckedChange={(checked) => setNotifications({ ...notifications, newOrders: checked })}
           />
@@ -1014,6 +1060,7 @@ const SettingsPage = () => {
           </div>
           <Switch
             id="payments"
+            className="shrink-0"
             checked={notifications.payments}
             onCheckedChange={(checked) => setNotifications({ ...notifications, payments: checked })}
           />
@@ -1028,6 +1075,7 @@ const SettingsPage = () => {
           </div>
           <Switch
             id="weekly-reports"
+            className="shrink-0"
             checked={notifications.weeklyReports}
             onCheckedChange={(checked) => setNotifications({ ...notifications, weeklyReports: checked })}
           />
@@ -1042,6 +1090,7 @@ const SettingsPage = () => {
           </div>
           <Switch
             id="monthly-reports"
+            className="shrink-0"
             checked={notifications.monthlyReports}
             onCheckedChange={(checked) => setNotifications({ ...notifications, monthlyReports: checked })}
           />
@@ -1154,6 +1203,7 @@ const SettingsPage = () => {
           </div>
           <Switch
             id="auto-backup"
+            className="shrink-0"
             checked={preferences.autoBackup}
             onCheckedChange={(checked) => setPreferences({ ...preferences, autoBackup: checked })}
           />
@@ -1168,6 +1218,7 @@ const SettingsPage = () => {
           </div>
           <Switch
             id="compact-view"
+            className="shrink-0"
             checked={preferences.compactView}
             onCheckedChange={(checked) => setPreferences({ ...preferences, compactView: checked })}
           />
