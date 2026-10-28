@@ -82,23 +82,23 @@ const QUICK_CONTACTS = [
     name: 'WhatsApp Support',
     desc: 'Fastest reply (Human agent)',
     icon: MessageSquare,
-    href: 'https://wa.me/23276000000?text=Hello%20MiBuks%20Support%2C%20I%20need%20help%20with%20my%20account',
+    href: 'https://wa.me/233200800555?text=Hello%20MiBuks%20Support%2C%20I%20need%20help%20with%20my%20account',
     badge: 'Fast',
     badgeColor: 'bg-emerald-600 text-white',
   },
   {
     name: 'Helpline Call',
-    desc: '+232 76 000 000',
+    desc: '+233 20 080 0555',
     icon: PhoneCall,
-    href: 'tel:+23276000000',
+    href: 'tel:+233200800555',
     badge: 'Voice',
     badgeColor: 'bg-blue-600 text-white',
   },
   {
     name: 'Email Desk',
-    desc: 'support@mibuks.com',
+    desc: 'info@mibukssl.com',
     icon: Mail,
-    href: 'mailto:support@mibuks.com?subject=MiBuks%20Support%20Request',
+    href: 'mailto:info@mibukssl.com?subject=MiBuks%20Support%20Request',
     badge: '24/7',
     badgeColor: 'bg-purple-600 text-white',
   },
@@ -170,7 +170,7 @@ export function ChatBotWidget() {
 
     // If user clicks WhatsApp escalate option
     if (text.toLowerCase().includes('whatsapp agent') || text.toLowerCase().includes('human agent')) {
-      window.open('https://wa.me/23276000000?text=Hello%20MiBuks%20Support%2C%20I%20would%20like%20to%20speak%20with%20an%20agent', '_blank')
+      window.open('https://wa.me/233200800555?text=Hello%20MiBuks%20Support%2C%20I%20would%20like%20to%20speak%20with%20an%20agent', '_blank')
     }
 
     const userMsg: Message = { role: 'user', content: text }
@@ -329,27 +329,30 @@ export function ChatBotWidget() {
           }
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 bg-gradient-primary text-white shrink-0 sm:rounded-t-2xl shadow-sm">
+          <div className="flex items-center justify-between px-4 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] pb-3 bg-[#7059e8] bg-gradient-to-r from-[#7059e8] to-[#8b5cf6] text-white shrink-0 sm:rounded-t-2xl shadow-sm">
             <div className="flex items-center gap-2.5">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-white hover:bg-white/20 h-9 w-9 rounded-full sm:hidden"
-                onClick={() => setOpen(false)}
-                aria-label="Back"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-
-              <div className="p-2 bg-white/20 rounded-xl">
-                <Bot className="h-5 w-5" />
-              </div>
+              {messages.length > 0 ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-white hover:bg-white/20 bg-white/10 h-9 w-9 rounded-full flex items-center justify-center cursor-pointer"
+                  onClick={handleResetChat}
+                  aria-label="Back to topics"
+                  title="Back to topics"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </Button>
+              ) : (
+                <div className="p-2 bg-white/20 rounded-xl">
+                  <Bot className="h-5 w-5 text-white" />
+                </div>
+              )}
 
               <div>
                 <div className="flex items-center gap-2">
-                  <p className="font-semibold text-sm leading-tight">MiBuks Customer Support</p>
+                  <p className="font-semibold text-sm sm:text-base leading-tight text-white">MiBuks Customer Support</p>
                   <span className="flex h-2 w-2 relative">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
                   </span>
                 </div>
@@ -357,12 +360,12 @@ export function ChatBotWidget() {
               </div>
             </div>
 
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5">
               {messages.length > 0 && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-white hover:bg-white/20 h-8 px-2 text-xs flex items-center gap-1 rounded-lg"
+                  className="text-white hover:bg-white/20 bg-white/10 h-8 px-2 text-xs flex items-center gap-1 rounded-lg"
                   onClick={handleResetChat}
                   title="Return to Support Options"
                 >
@@ -371,14 +374,15 @@ export function ChatBotWidget() {
                 </Button>
               )}
 
+              {/* Close Button - Clearly visible on BOTH mobile and desktop */}
               <Button
                 variant="ghost"
                 size="icon"
-                className="text-white hover:bg-white/20 h-9 w-9 rounded-full hidden sm:flex"
+                className="text-white hover:bg-white/25 bg-white/15 h-9 w-9 rounded-full flex items-center justify-center cursor-pointer shadow-xs"
                 onClick={() => setOpen(false)}
-                aria-label="Close"
+                aria-label="Close customer support"
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5 text-white" />
               </Button>
             </div>
           </div>
@@ -469,7 +473,7 @@ export function ChatBotWidget() {
                     </div>
                   </div>
                   <a
-                    href="https://wa.me/23276000000?text=Hello%20MiBuks%20Support%2C%20I%20need%20assistance%20with%20my%20business%20account"
+                    href="https://wa.me/233200800555?text=Hello%20MiBuks%20Support%2C%20I%20need%20assistance%20with%20my%20business%20account"
                     target="_blank"
                     rel="noreferrer"
                     className="shrink-0 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium inline-flex items-center gap-1 shadow-xs"
@@ -569,28 +573,28 @@ export function ChatBotWidget() {
                 type="submit"
                 size="icon"
                 disabled={!input.trim() || isLoading}
-                className="rounded-full h-11 w-11 bg-gradient-primary hover:opacity-90 shrink-0 shadow-md min-h-[44px] min-w-[44px]"
+                className="rounded-full h-11 w-11 bg-[#7059e8] hover:bg-[#5f48db] text-white shrink-0 shadow-md min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer transition-colors"
                 aria-label="Send message"
               >
-                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin text-white" /> : <Send className="h-4 w-4 text-white" />}
               </Button>
             </form>
           </div>
         </div>
       )}
 
-      {/* Floating Trigger Button (Hidden on mobile when chat is open to avoid blocking controls) */}
+      {/* Floating Trigger Button (Always solid brand purple on white and dark themes) */}
       {(!open || !isSmallScreen) && (
         <button
           onClick={() => setOpen(prev => !prev)}
           className={cn(
-            'fixed bottom-20 right-4 sm:right-6 z-[90] h-14 w-14 rounded-full shadow-xl flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 touch-manipulation',
-            'bg-gradient-primary text-white border-2 border-white/20'
+            'fixed bottom-20 right-4 sm:right-6 z-[90] h-14 w-14 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 touch-manipulation cursor-pointer',
+            'bg-[#7059e8] hover:bg-[#5f48db] text-white border-2 border-white/30 shadow-purple-600/30 ring-4 ring-purple-500/10'
           )}
           aria-label={open ? 'Close customer support' : 'Open customer support'}
           data-accessibility-toolbar
         >
-          {open ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
+          {open ? <X className="h-6 w-6 text-white" /> : <MessageCircle className="h-7 w-7 text-white" />}
         </button>
       )}
     </>
